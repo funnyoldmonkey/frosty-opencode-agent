@@ -94,28 +94,15 @@ git clone https://github.com/funnyoldmonkey/frosty-opencode-agent.git
 cd frosty-opencode-agent
 ```
 
-### Step 2: Configure Chrome DevTools MCP
+### Step 2: No MCP Configuration Needed
 
-Add this to your **global** OpenCode config file:
+The MCP servers and API key rotator proxy are already configured in the project's `opencode.jsonc` file. Everything is self-contained — no global config changes required.
 
-**Windows:** `%USERPROFILE%\.config\opencode\opencode.jsonc`
-**macOS/Linux:** `~/.config/opencode/opencode.jsonc`
+The included `opencode.jsonc` sets up:
+- **Chrome DevTools MCP** — browser automation with `--isolated` flag (clean session each time)
+- **Google provider baseURL** — routes through the API key rotator at `http://127.0.0.1:5555`
 
-Add the `mcp` section to your existing config (merge with your current settings):
-
-```json
-{
-  "mcp": {
-    "chrome-devtools": {
-      "type": "local",
-      "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
-      "enabled": true
-    }
-  }
-}
-```
-
-> **Note:** Due to a [known bug](https://github.com/anomalyco/opencode/issues/19098) in OpenCode Desktop, MCP servers must be configured in the **global** config, not the project-level config.
+> **Note:** The MCP tab in OpenCode Desktop may show "No MCPs configured" — this is a UI bug. The tools load and work correctly from the project config.
 
 ### Step 3: Get Google AI API Keys
 
@@ -157,23 +144,7 @@ AIzaSyC1111111111222222222233333
 
 > **Security:** `keys.txt` is in `.gitignore` and will never be committed.
 
-### Step 4: Configure the API Key Rotator
-
-Add the Google provider baseURL override to your global OpenCode config:
-
-```json
-{
-  "provider": {
-    "google": {
-      "options": {
-        "baseURL": "http://127.0.0.1:5555"
-      }
-    }
-  }
-}
-```
-
-### Step 5: Start the Key Rotator
+### Step 4: Start the Key Rotator
 
 ```bash
 python api-key-rotator/rotator.py
@@ -193,7 +164,7 @@ First run auto-installs dependencies. You'll see:
 
 Open `http://127.0.0.1:5555/_stats` in your browser for a live dashboard showing key usage, rate limits, and request logs.
 
-### Step 6: Open in OpenCode Desktop
+### Step 5: Open in OpenCode Desktop
 
 1. Open OpenCode Desktop
 2. Open the `frosty-opencode-agent` folder as your project
@@ -328,6 +299,7 @@ frosty-opencode-agent/
 ├── opencode-profile-pic/
 │   └── frosty_icon.png
 ├── opencode.json                    ← Agent and skill configuration
+├── opencode.jsonc                   ← MCP servers and provider config (portable)
 ├── .gitignore
 └── README.md
 ```
@@ -381,3 +353,4 @@ This is a [known OpenCode bug](https://github.com/anomalyco/opencode/issues/1909
 ### Agent uses Playwright instead of Chrome DevTools
 
 The AGENTS.md explicitly says "Do NOT use Playwright for debugging tasks." If a model still picks Playwright, try a stronger model (Gemma 4 31B) or restart the session.
+
