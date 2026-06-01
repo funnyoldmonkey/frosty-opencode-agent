@@ -8,11 +8,9 @@
 
 [![OpenCode](https://img.shields.io/badge/OpenCode-Desktop-00BFFF?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQxIDAtOC0zLjU5LTgtOHMzLjU5LTggOC04IDggMy41OSA4IDgtMy41OSA4LTggNHoiLz48L3N2Zz4=)](https://opencode.ai)
 [![Chrome DevTools MCP](https://img.shields.io/badge/Chrome_DevTools-MCP-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://www.npmjs.com/package/chrome-devtools-mcp)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-
 ---
 
-**Tested with free Google AI models — no paid API required.**
+**Tested with free AI models — no paid API required.**
 
 [Getting Started](#-getting-started) · [How It Works](#-how-it-works) · [Model Comparison](#-model-comparison) · [API Key Rotator](#-api-key-rotator)
 
@@ -56,21 +54,24 @@ It gets smarter over time. Every verified fix and every new skill compounds into
 
 ## Model Comparison
 
-Frosty has been tested with multiple free Google AI models. Here's how they performed on the same 6-issue Shopify store audit:
+Frosty has been tested with multiple free AI models on the same 6-issue Shopify store audit (variant sync, CSS spacing, duplicate buttons, mobile responsive, badge verification, cart data verification):
 
-| Model | Speed | Issues Resolved | Variant Sync (Hard Problem) | Skill Created | Session Log | Score |
-|---|---|---|---|---|---|---|
-| **Gemini 3.1 Flash Lite** | ~2m 44s | 5/6 fully, 1 identified | UI sync only — flagged submission issue for escalation | Yes (real file) | N/A (added later) | **9/10** |
-| **Gemma 4 31B IT** | ~13m | 6/6 fully | Fully fixed — format-aware GID/short ID detection | Yes (real file) | Yes | **10/10** |
-| **Gemma 4 26B A4B** | ~8m | TBD | TBD | TBD | TBD | TBD |
+| Model | Vision | Speed | Issues Fixed | Hard Problem (Variant Sync) | Skill Created | Session Log | Score |
+|---|---|---|---|---|---|---|---|
+| **Gemini 3.1 Flash Lite** | Yes | ~2m 44s | 5/6 | UI sync only — flagged submission for escalation | ✅ | ❌ | **9/10** |
+| **Gemma 4 31B IT** | Yes | ~13m | 6/6 | Fully fixed — GID/short ID format detection | ✅ | ✅ | **10/10** |
+| **Gemma 4 26B A4B** | Yes | ∞ (stuck) | 0/6 | Infinite reasoning loop — never executed | ❌ | ❌ | **0/10** |
+| **Xiaomi MiMo V2.5** | Yes | ~10m | 6/6 | Fully fixed — color map + URL param sync | ✅ | ✅ | **10/10** |
 
 ### Recommendations
 
-- **Flash Lite** — Best for quick CSS fixes, spacing issues, and straightforward debugging. Fast and cheap. Good for high-volume, simpler tickets.
-- **Gemma 4 31B** — Best for complex issues requiring deep reasoning (variant sync, form data verification, multi-step JS fixes). Slower but more thorough.
-- **Gemma 4 26B A4B** — Mixture-of-experts model. Good balance of speed and capability. Testing in progress.
+- **Gemini 3.1 Flash Lite** — Best for quick CSS fixes and straightforward debugging. Blazing fast. Good for high-volume, simpler tickets.
+- **Gemma 4 31B IT** — Best for complex issues requiring deep reasoning (variant sync, form data, multi-step JS). Slower but thorough.
+- **Xiaomi MiMo V2.5** — Excellent all-rounder. Solved the hard problem with the most thorough approach (URL param handling). Recommended.
+- **Gemma 4 26B A4B** — **Not recommended.** Gets stuck in infinite reasoning loops on agentic tasks.
+- **Non-vision models** — Still work. Frosty falls back to DOM inspection (`evaluate_script`, `take_snapshot`) instead of screenshot verification. Less reliable for visual/layout issues, equally effective for JS/logic issues.
 
-All models are **free** through Google AI Studio API keys.
+Most models are **free** through [Google AI Studio](https://aistudio.google.com/apikey) or [OpenRouter](https://openrouter.ai).
 
 ---
 
@@ -380,19 +381,3 @@ This is a [known OpenCode bug](https://github.com/anomalyco/opencode/issues/1909
 ### Agent uses Playwright instead of Chrome DevTools
 
 The AGENTS.md explicitly says "Do NOT use Playwright for debugging tasks." If a model still picks Playwright, try a stronger model (Gemma 4 31B) or restart the session.
-
----
-
-## License
-
-MIT — use it, modify it, share it.
-
----
-
-<div align="center">
-
-**Built by [Jall](https://useamp.com) with help from Claude**
-
-*Making even the dumbest AI smart enough to fix Shopify stores.*
-
-</div>
