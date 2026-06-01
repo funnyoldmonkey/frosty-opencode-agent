@@ -1,0 +1,20 @@
+# API Keys (NEVER commit these)
+api-key-rotator/keys.txt
+
+# Session logs (local only)
+logs/*.md
+
+# Playwright MCP cache
+.playwright-mcp/
+
+# Node modules
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python cache
+__pycache__/
+*.pyc
