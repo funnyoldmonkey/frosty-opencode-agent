@@ -15,7 +15,7 @@
     },
 	"chrome-devtools": {
 	  "type": "local",
-	  "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--autoConnect"],
+	  "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--isolated"],
 	  "enabled": true
 	}
   }
