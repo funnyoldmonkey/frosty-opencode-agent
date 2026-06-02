@@ -354,4 +354,46 @@ This is a [known OpenCode bug](https://github.com/anomalyco/opencode/issues/1909
 
 The AGENTS.md explicitly says "Do NOT use Playwright for debugging tasks." If a model still picks Playwright, try a stronger model (Gemma 4 31B) or restart the session.
 
+---
 
+## Use Your Own Browser (AutoConnect Mode)
+
+By default, Frosty spawns its own isolated Chromium browser. With AutoConnect, Frosty connects to **your actual Chrome browser** — giving it access to your logged-in sessions (Helpscout, Shopify Partners, Notion, etc.).
+
+### Setup
+
+**Step 1: Enable Remote Debugging in Chrome**
+
+1. Open your Chrome browser
+2. Navigate to `chrome://inspect/#remote-debugging`
+3. Follow the dialog to **enable remote debugging**
+4. You should see: `Server running at 127.0.0.1:9222`
+
+> **Note:** You need to re-enable this each time you restart Chrome.
+
+**Step 2: Update `opencode.jsonc`**
+
+Change the `chrome-devtools` command to:
+
+```json
+"chrome-devtools": {
+  "type": "local",
+  "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--autoConnect"],
+  "enabled": true
+}
+```
+
+**Step 3: Restart OpenCode and tell Frosty which tab to work on**
+
+- *"Go to the Helpscout tab and check ticket #384379"*
+- *"Open the Notion tab and scrape the BIS documentation"*
+- *"Work on the Shopify Partners tab — find store xyz"*
+
+Frosty uses `list_pages` to see all your open tabs, then `select_page` to target the one you specify. Your other tabs are untouched.
+
+### Tips
+
+- Be specific: *"the tab with helpscout.net"* or *"the Notion tab titled BIS Docs"*
+- Requires Chrome 144+
+- Connects to one Chrome profile at a time
+- To switch back to isolated mode, remove `--autoConnect` from the command
