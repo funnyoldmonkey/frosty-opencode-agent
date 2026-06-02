@@ -342,7 +342,7 @@ rm -rf .opencode/tools/
 
 ### MCP servers don't appear
 
-This is a [known OpenCode bug](https://github.com/anomalyco/opencode/issues/19098). MCP config must be in the **global** config file, not the project-level one. See [Step 2](#step-2-configure-chrome-devtools-mcp).
+This is a [known OpenCode bug](https://github.com/anomalyco/opencode/issues/19098). However, the tools still load and work correctly from the project config — it's just the UI that doesn't show them.
 
 ### Rate limits (429 errors)
 
@@ -353,4 +353,65 @@ This is a [known OpenCode bug](https://github.com/anomalyco/opencode/issues/1909
 ### Agent uses Playwright instead of Chrome DevTools
 
 The AGENTS.md explicitly says "Do NOT use Playwright for debugging tasks." If a model still picks Playwright, try a stronger model (Gemma 4 31B) or restart the session.
+
+---
+
+## Use Your Own Browser (AutoConnect Mode)
+
+By default, Frosty spawns its own isolated Chromium browser. But you can connect it to **your actual Chrome browser** — giving Frosty access to your logged-in sessions (Helpscout, Shopify Partners, Notion, etc.).
+
+### Step 1: Enable Remote Debugging in Chrome
+
+1. Open your Chrome browser
+2. Navigate to `chrome://inspect/#remote-debugging`
+3. Follow the dialog to **enable remote debugging**
+4. You should see: `Server running at 127.0.0.1:9222`
+
+> **Note:** This needs to be done once per Chrome session. If you restart Chrome, you'll need to re-enable it.
+
+### Step 2: Update the MCP Config
+
+Change the `chrome-devtools` entry in your `opencode.jsonc`:
+
+**Default (spawns its own browser):**
+```json
+"chrome-devtools": {
+  "type": "local",
+  "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--isolated"],
+  "enabled": true
+}
+```
+
+**AutoConnect (uses your browser):**
+```json
+"chrome-devtools": {
+  "type": "local",
+  "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--autoConnect"],
+  "enabled": true
+}
+```
+
+### Step 3: Restart OpenCode and Use It
+
+Restart OpenCode Desktop, then tell Frosty which tab to work on:
+
+- *"Go to the Helpscout tab and check ticket #384379"*
+- *"Open the Notion tab and scrape the BIS documentation"*
+- *"Work on the Shopify Partners tab — find store xyz"*
+
+Frosty uses `list_pages` to see all your open tabs, then `select_page` to target the one you specified.
+
+### Benefits
+
+- Access any logged-in web app (Helpscout, Shopify Partners, Notion, etc.)
+- No re-authentication for password-protected stores
+- Reply to support emails, scrape documentation, navigate admin panels
+- Your other tabs are untouched — Frosty only works on the tab it selects
+
+### Tips
+
+- Be specific when telling Frosty which tab: *"the tab with helpscout.net"* or *"the Notion tab titled BIS Docs"*
+- You can switch between AutoConnect and isolated mode by changing one line in `opencode.jsonc`
+- AutoConnect requires Chrome 144+
+- Only connects to one Chrome profile at a time
 
