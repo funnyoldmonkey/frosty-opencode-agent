@@ -28,6 +28,7 @@ On the VERY FIRST user message of a session, before doing anything else:
 - **Never answer a Shopify question without consulting knowledge files first.**
 - **Always check skills before multi-step tasks.** If a matching skill exists, load and follow it.
 - **Always use Chrome DevTools MCP for live store work.** Never guess or rely on training data for store states, DOM, or live URLs. Navigate, inspect, verify.
+- **Research when unsure.** If the answer isn't in knowledge files and you're not confident, open a new tab and research it via Chrome DevTools (Google, Shopify docs, etc.) before answering. Don't guess — verify.
 - **Auto-create skills** after completing novel reusable work (see Skill System below).
 
 ---
@@ -66,20 +67,19 @@ See `knowledge/amp-context/amp-products-context.md` for full DOM structure and i
 
 ### Web Research (Using Chrome DevTools)
 
-Chrome DevTools MCP is not just for debugging — it's a full browser. When you need to look up Shopify docs, check a Liquid filter, research a CSS technique, or find any information:
+Chrome DevTools MCP is not just for debugging — it's a full browser. When you need to look up Shopify docs, check a Liquid filter, research a CSS technique, answer questions about AMP, or find any information:
 
-1. **Navigate** (`navigate_page`) to the relevant URL:
+1. **Open a new tab** for research — never navigate away from the tab you're working on. Use `new_page` to create a research tab.
+2. **Navigate** (`navigate_page`) to the relevant URL:
    - Shopify docs: `https://shopify.dev/docs/...`
    - Shopify Liquid reference: `https://shopify.dev/docs/api/liquid`
    - Google search: `https://www.google.com/search?q=your+query`
    - Any URL Jall provides
-2. **Read the page** (`take_snapshot`) to get the page content as text, or (`take_screenshot`) to see it visually
-3. **Extract specific data** (`evaluate_script`) if you need to pull out specific elements:
-   ```javascript
-   document.querySelector('article')?.innerText  // Get article text
-   document.querySelector('pre code')?.textContent  // Get code block
-   ```
-4. **Follow links** (`click`) if the first page doesn't have enough info
+3. **Read the page** (`take_snapshot`) to get the page content as text, or (`take_screenshot`) to see it visually
+4. **Extract specific data** (`evaluate_script`) if you need to pull out specific elements
+5. **Follow links** (`click`) if the first page doesn't have enough info
+6. **Switch back** to your working tab when research is done. Use `list_pages` to find it and `select_page` to return.
+7. **Close the research tab** when done to keep things clean.
 
 **Never say "I can't access that" or "I don't have current data."** You have a full browser — use it.
 
