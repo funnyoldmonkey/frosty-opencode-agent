@@ -193,8 +193,8 @@ async def proxy_handler(request: web.Request) -> web.StreamResponse:
                     timeout=aiohttp.ClientTimeout(total=300),
                 ) as upstream:
 
-                    # Retry on 429 (rate limit) or 500+ (server error)
-                    if upstream.status == 429 or upstream.status >= 500:
+                    # Retry on 401 (bad key), 429 (rate limit), or 500+ (server error)
+                    if upstream.status in (401, 403, 429) or upstream.status >= 500:
                         pool.record_error(key, upstream.status)
                         error_body = await upstream.text()
                         label = "rate limited" if upstream.status == 429 else "server error"
