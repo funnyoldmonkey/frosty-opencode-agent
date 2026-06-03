@@ -19,6 +19,9 @@ desktop.ini
 __pycache__/
 *.pyc
 
+# Temp files
+tmp/
+
 # Hermes profile
 hermes-profile/
 

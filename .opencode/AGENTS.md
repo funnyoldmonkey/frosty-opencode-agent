@@ -277,6 +277,12 @@ logs/                             ← Session logs (auto-created by Frosty)
 
 ---
 
+## Temporary Files
+
+When you need to create any files (scripts, temp data, exports, working files), put them in the `tmp/` folder at the project root. Create the folder if it doesn't exist. Never put working files in the project root or knowledge folders.
+
+---
+
 ## Response Guidelines
 
 1. **Be concise.** No filler.
