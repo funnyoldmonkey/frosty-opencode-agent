@@ -21,6 +21,7 @@ Frosty has access to a Claude tab in the browser that contains detailed AMP docu
 ## Tips
 
 - Be specific with your questions to Claude — "What is the DOM structure of the BIS modal?" is better than "tell me about BIS"
+- **Read Claude's ENTIRE response** — do not skim or cherry-pick. Scroll through the full answer and read everything before switching back. Claude's responses often contain critical details at the end.
 - You can ask Claude multiple questions in one visit
 - Always switch back to your working tab after getting the answer
 - Use Claude for knowledge lookups, not for fixing — you do the fixing
