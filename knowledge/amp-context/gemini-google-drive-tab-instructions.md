@@ -14,8 +14,8 @@ Frosty has access to a Gemini - Google Drive tab in the browser that contains de
 1. Use `list_pages` to find the Gemini - Google Drive tab (look for "Google Drive" or "Gemini - Google Drive" in the tab titles)
 2. `select_page` to switch to the Gemini - Google Drive tab
 3. Type your question in Gemini - Google Drive's input field and submit it
-4. Wait for Gemini - Google Drive to respond
-5. Read Gemini - Google Drive's response to get the context you need
+4. **Wait patiently for Gemini - Google Drive to respond.** It is SLOW — it thinks deeply and streams its response gradually. Do NOT read the response while it's still generating. Wait until the response is fully complete (the input field becomes active again or the streaming stops) before reading.
+5. Read Gemini - Google Drive's FULL response to get the context you need
 6. `select_page` back to your working tab and continue
 
 ## Tips
