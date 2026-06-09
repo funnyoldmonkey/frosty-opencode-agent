@@ -25,7 +25,7 @@ When you need detailed AMP documentation that isn't in your local knowledge — 
 3. Type a specific question and submit (e.g., "What is the DOM structure of the BIS modal?" not "tell me about BIS")
 4. **Wait for the "Copy" button** to appear on Gemini's response. This means it's fully rendered. Do NOT read the response directly from the page — it will be truncated. Instead:
 5. **Click the Copy button** for that Gemini turn
-6. **Write to a session temp file** — save the clipboard contents to `tmp/gemini-YYYY-MM-DD_HH-MM.md` (use the current session's timestamp, created on first Gemini query). If asking multiple questions in the same session, **append** each response to the same file.
+6. **Write to a session temp file** — save the clipboard contents to `./tmp/gemini-YYYY-MM-DD_HH-MM.md` in the **project root** (same folder as `opencode.json`). Use the current session's timestamp, created on first Gemini query. If asking multiple questions in the same session, **append** each response to the same file. **NEVER write to AppData or any folder outside the project.**
 7. **Read that file** to get the full, untruncated response
 8. `select_page` back to your working tab
 
@@ -76,4 +76,4 @@ Skills live in `.opencode/skills/<name>/SKILL.md`. Check for matching skills bef
 - Nothing in `knowledge/` is pre-loaded. Always read the actual files when you need them.
 - For deep AMP docs not available locally, use the **Gemini Google Drive tab** (see above)
 - If Jall provides new info worth persisting, offer to save it to `knowledge/`
-- Temp files go in `tmp/` at the project root
+- Temp files go in `./tmp/` at the **project root** (same folder as `opencode.json`). NEVER write outside the project folder.
