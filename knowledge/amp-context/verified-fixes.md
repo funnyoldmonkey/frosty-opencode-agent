@@ -137,12 +137,75 @@ This file is automatically maintained by Frosty. Each entry represents a trouble
       });
     }
   }
-  const btn = findElement(SELECTORS.addToCart);
-  if (btn) {
-    const observer = new MutationObserver(() => applyFix());
-    observer.observe(btn, { childList: true, subtree: true, characterData: true });
-    applyFix();
+
   }
+})();
+\`\`\`
+- **Verified by Jall:** Yes
+
+### [2026-06-09] BIS Button in Quick-Add Popups (Variant Aware)
+- **Store URL:** https://www.seedsnow.com/
+- **Issue:** BIS button missing in collection page quick-add drawers, hide-until-hover behavior from theme CSS, and not updating variant in BIS modal when switching variants in the drawer.
+- **Fix Description:** Spoofed `BIS.urlIsProductPage()` to enable popup logic on collection pages. Implemented a high-performance MutationObserver with strict state checking to prevent browser freezes. Used pure inline styles to override theme visibility issues and dynamically sync `data-variant-id` from the Shopify variant input to ensure the correct variant loads in the BIS modal.
+- **Script:**
+\`\`\`javascript
+(function() {
+  if (window.BIS && typeof window.BIS.urlIsProductPage === 'function') {
+    var origUrl = window.BIS.urlIsProductPage;
+    window.BIS.urlIsProductPage = function() {
+      if (document.querySelector('quick-add-drawer .product-info__add-to-cart.flex')) return true;
+      return origUrl.apply(this, arguments);
+    };
+  }
+
+  function updateButtonVisibility() {
+    var drawer = document.querySelector('quick-add-drawer');
+    if (!drawer) return;
+    var target = drawer.querySelector('.product-info__add-to-cart.flex');
+    if (!target) return;
+    var addBtn = target.querySelector('button[name="add"]');
+    var isSoldOut = addBtn && (addBtn.disabled || addBtn.innerText.toLowerCase().includes('sold out'));
+    var bisButton = document.getElementById('BIS_trigger');
+
+    if (isSoldOut) {
+      if (!bisButton) {
+        bisButton = document.createElement('button');
+        bisButton.id = 'BIS_trigger';
+        bisButton.type = 'button';
+        target.parentNode.insertBefore(bisButton, target);
+      }
+      var targetClass = 'BIS_trigger'; 
+      if (bisButton.className !== targetClass) bisButton.className = targetClass;
+      var targetStyle = 'background-color:rgb(77,195,124);color:rgb(255,255,255);font-size:12.8px;font-weight:700;padding:15px 26px;border-radius:29px;border:none;text-align:center;width:100%;min-height:45px;margin-bottom:25px;cursor:pointer;display:block;opacity:1;visibility:visible;box-sizing:border-box;transition:none;';
+      if (bisButton.style.cssText !== targetStyle) bisButton.style.cssText = targetStyle;
+      var targetText = (window.BIS && typeof window.BIS.currentButtonCaption === 'function') ? window.BIS.currentButtonCaption() : 'EMAIL WHEN AVAILABLE';
+      if (bisButton.innerText !== targetText) bisButton.innerText = targetText;
+      var productLink = drawer.querySelector('a[href*="/products/"]');
+      if (productLink) {
+        var url = new URL(productLink.href);
+        var handle = url.pathname.split('/products/')[1].split('?')[0].split('/')[0];
+        if (bisButton.getAttribute('data-product-handle') !== handle) bisButton.setAttribute('data-product-handle', handle);
+      }
+      var variantInput = drawer.querySelector('input[name="id"]');
+      var currentVariantId = variantInput ? variantInput.value : '';
+      if (bisButton.getAttribute('data-variant-id') !== currentVariantId) bisButton.setAttribute('data-variant-id', currentVariantId);
+    } else {
+      if (bisButton && bisButton.style.display !== 'none') bisButton.style.display = 'none';
+    }
+  }
+
+  var updateQueued = false;
+  var observer = new MutationObserver(function() {
+    if (!updateQueued) {
+      updateQueued = true;
+      window.requestAnimationFrame(function() {
+        updateButtonVisibility();
+        updateQueued = false;
+      });
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  updateButtonVisibility();
 })();
 \`\`\`
 - **Verified by Jall:** Yes
