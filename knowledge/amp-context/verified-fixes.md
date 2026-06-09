@@ -98,4 +98,54 @@ This file is automatically maintained by Frosty. Each entry represents a trouble
 \`\`\`
 - **Verified by Jall:** Yes
 
+### [2026-06-09] Pre-order Button Alpine.js Override Fix
+- **Store URL:** https://www.prenebags.com/
+- **Issue:** Alpine.js dynamically rewrites the "Add to Cart" button inner HTML, overriding the AMP Pre-order label.
+- **Fix Description:** Implemented a MutationObserver that monitors the button for DOM changes and forces the button text to match the dynamic `custom_button_copy` from AppPreOrdersConfig.
+- **Script:**
+\`\`\`javascript
+(function() {
+  const SELECTORS = {
+    addToCart: [
+      '[data-amp-add-to-cart]',
+      'form[action*="/cart/add"] [type="submit"]',
+      'button[name="add"]',
+      '.product-form__cart-submit',
+      '.add-to-cart'
+    ]
+  };
+  function findElement(selectors) {
+    return selectors.reduce((found, selector) => found || document.querySelector(selector), null);
+  }
+  function getVariantId() {
+    const variantElement = document.querySelector('select[name="id"], input[name="id"]:checked, input[name="id"][type="hidden"]');
+    const form = document.querySelector('form[action*="/cart/add"]');
+    return variantElement?.value || form?.dataset?.variantId;
+  }
+  function applyFix() {
+    const btn = findElement(SELECTORS.addToCart);
+    if (!btn) return;
+    const customText = window.AppPreOrdersConfig?.custom_button_copy;
+    if (!customText) return;
+    const variantId = getVariantId();
+    const variant = window.LiquidPreOrdersConfig?.variants?.[variantId];
+    if (variant && variant.oos && variant.inventory_policy === 'continue') {
+      btn.querySelectorAll('span').forEach(span => {
+        if (span.textContent.trim() !== customText) {
+          span.textContent = customText;
+        }
+      });
+    }
+  }
+  const btn = findElement(SELECTORS.addToCart);
+  if (btn) {
+    const observer = new MutationObserver(() => applyFix());
+    observer.observe(btn, { childList: true, subtree: true, characterData: true });
+    applyFix();
+  }
+})();
+\`\`\`
+- **Verified by Jall:** Yes
+
+
 
