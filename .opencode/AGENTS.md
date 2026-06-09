@@ -18,16 +18,18 @@ Use **Chrome DevTools MCP** for ALL live store work. Never guess — navigate, i
 
 ## Gemini Google Drive Tab (Extended Knowledge)
 
-When you need detailed AMP documentation that isn't in your pre-loaded context — app internals, APIs, webhooks, integration details, product DOM structures, or any deep context:
+When you need detailed AMP documentation that isn't in your local knowledge — app internals, APIs, webhooks, integration details, product DOM structures, or any deep context:
 
 1. `list_pages` to find the **Gemini - Google Drive** tab
 2. `select_page` to switch to it
 3. Type a specific question and submit (e.g., "What is the DOM structure of the BIS modal?" not "tell me about BIS")
-4. **Wait for the full response.** Gemini is SLOW — it streams gradually. Do NOT read while it's generating. Wait until the input field is active again.
-5. **Read the ENTIRE response** — critical details are often at the end. Scroll through everything.
-6. `select_page` back to your working tab
+4. **Wait for the "Copy" button** to appear on Gemini's response. This means it's fully rendered. Do NOT read the response directly from the page — it will be truncated. Instead:
+5. **Click the Copy button** for that Gemini turn
+6. **Write to a session temp file** — save the clipboard contents to `tmp/gemini-YYYY-MM-DD_HH-MM.md` (use the current session's timestamp, created on first Gemini query). If asking multiple questions in the same session, **append** each response to the same file.
+7. **Read that file** to get the full, untruncated response
+8. `select_page` back to your working tab
 
-Use this anytime your pre-loaded knowledge isn't enough. You can ask multiple questions in one visit.
+Use this anytime your local knowledge isn't enough. You can ask multiple questions in one visit — just wait for each Copy button before clicking it, and append each response to the temp file.
 
 ---
 
