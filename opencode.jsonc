@@ -5,7 +5,14 @@
 	  "options": {
 		"baseURL": "http://127.0.0.1:5555"
 	  }
-	}
+	},
+    "custom-openrouter": {
+      "models": {
+        "openrouter/owl-alpha": {
+          "name": "Owl Alpha - Researcher"
+        }
+      }
+    }	
   },
   "mcp": {
     "playwright": {
