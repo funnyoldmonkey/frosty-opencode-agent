@@ -14,64 +14,83 @@ This file is automatically maintained by Frosty. Each entry represents a trouble
 // See session log for full implementation
 \`\`\`
 
-### [2026-06-08] Slide Cart German Translation
+### [2026-06-08] Slide Cart German Translation (Bomique)
 - **Store URL:** https://bomique.nl/
-- **Issue:** Slide Cart content appearing in Dutch when German language is selected.
-- **Fix Description:** Implemented a targeted translation script with a debounced MutationObserver to translate specific reward, shipping, and item count strings while preserving bold formatting.
+- **Theme:** Copy of Bomique (Duplicate)
+- **File:** `snippets/amp-slidecart.liquid` at line 72
+- **Issue:** Slide Cart content appearing in Dutch when German language is selected. Standard Shopify translations don't cover all Slide Cart elements.
+- **Fix Description:** Implemented a surgical translation script using CSS class-based targeting and a debounced MutationObserver. Uses `textContent` instead of `innerText` to handle CSS `text-transform: uppercase`. Targets specific elements by class name rather than text matching to avoid race conditions.
+- **Translations Applied:**
+  - `Verzekerde verzending` → `Versicherter Versand`
+  - `tegen schade, verlies & diefstal` → `<strong>Schutz bei Beschädigung, Verlust & Diebstahl</strong>`
+  - `Nog één item voor Gratis verzending!` → `Nur noch ein Artikel bis zum <strong>kostenlosen Versand</strong>!`
+  - `2 items` → `2 Artikel`
+  - `GRATIS VERZENDING` → `KOSTENLOSER VERSAND`
+  - `Gratis verzending toegepast!` → `<strong>Kostenloser Versand</strong> aktiviert!`
 - **Script:**
 \`\`\`javascript
 (function() {
   const isGerman = document.documentElement.lang === 'de' || window.Shopify?.locale === 'de';
   if (!isGerman) return;
 
-  const translations = {
-    'Verzekerde verzending': 'Versicherter Versand',
-    'Verzekerde Verzending': 'Versicherter Versand',
-    'tegen schade, verlies & diefstal': '<strong>Schutz bei Beschädigung, Verlust & Diebstahl</strong>',
-    'Tegen schade, verlies & diefstal': '<strong>Schutz bei Beschädigung, Verlust & Diebstahl</strong>',
-    'Nog één item voor Gratis verzending!': 'Nur noch ein Artikel bis zum <strong>kostenlosen Versand</strong>!',
-    'Gratis verzending toegepast!': '<strong>Kostenloser Versand</strong> aktiviert!',
-    'Gratis verzending': 'KOSTENLOSER VERSAND'
-  };
-
   const translateCart = () => {
     const cart = document.querySelector('#slidecarthq');
     if (!cart) return;
 
+    // 1. Handle "X items" -> "X Artikel"
     cart.querySelectorAll('.rewards-tiers-labels-item-amount').forEach(el => {
-      const text = el.innerText;
+      const text = el.textContent;
       if (text.includes('items')) {
         const newText = text.replace(/\d+\s*items/, (match) => match.replace('items', 'Artikel'));
-        if (el.innerText !== newText) el.innerText = newText;
+        if (el.textContent !== newText) el.textContent = newText;
       }
     });
 
-    const allElements = cart.querySelectorAll('p, span, div, strong');
-    allElements.forEach(el => {
-      if (el.children.length === 0 && el.innerText.trim()) {
-        const text = el.innerText.trim();
-        for (const [oldText, newText] of Object.entries(translations)) {
-          if (text === oldText) {
-            if (el.innerHTML !== newText) el.innerHTML = newText;
-            break;
-          }
-        }
+    // 2. Handle rewards label (use textContent to avoid CSS uppercase)
+    cart.querySelectorAll('.rewards-tiers-labels-item-label').forEach(el => {
+      const text = el.textContent.trim();
+      if (text === 'Gratis verzending') {
+        if (el.innerHTML !== 'KOSTENLOSER VERSAND') el.innerHTML = 'KOSTENLOSER VERSAND';
       }
     });
 
-    const containers = ['.rewards-pre-unlock-text', '.rewards-post-unlock-text', '.shipping-protection-description'];
-    containers.forEach(selector => {
-      cart.querySelectorAll(selector).forEach(container => {
-        const text = container.innerText.trim();
-        for (const [oldText, newText] of Object.entries(translations)) {
-          if (text === oldText) {
-            if (container.innerHTML !== newText) container.innerHTML = newText;
-            break;
-          }
-        }
-      });
+    // 3. Handle pre-unlock text (one item left)
+    cart.querySelectorAll('.rewards-pre-unlock-text').forEach(el => {
+      const text = el.textContent.trim();
+      if (text.includes('Nog één item voor') && !el.innerHTML.includes('kostenlosen Versand')) {
+        el.innerHTML = '<p>Nur noch ein Artikel bis zum <strong>kostenlosen Versand</strong>!</p>';
+      }
+    });
+
+    // 4. Handle post-unlock text (free shipping activated)
+    cart.querySelectorAll('.rewards-post-unlock-text').forEach(el => {
+      const text = el.textContent.trim();
+      if (text.includes('Gratis verzending toegepast') && !el.innerHTML.includes('Kostenloser Versand')) {
+        el.innerHTML = '<p><strong>Kostenloser Versand</strong> aktiviert!</p>';
+      }
+    });
+
+    // 5. Handle shipping protection title
+    cart.querySelectorAll('.shipping-protection-title').forEach(el => {
+      const text = el.textContent.trim();
+      if (text === 'Verzekerde verzending' || text === 'Verzekerde Verzending') {
+        if (el.innerHTML !== 'Versicherter Versand') el.innerHTML = 'Versicherter Versand';
+      }
+    });
+
+    // 6. Handle shipping protection description
+    cart.querySelectorAll('.shipping-protection-description').forEach(el => {
+      const text = el.textContent.trim();
+      if (text.includes('schade, verlies & diefstal') && !el.innerHTML.includes('Schutz bei Beschädigung')) {
+        el.innerHTML = '<strong>Schutz bei Beschädigung, Verlust & Diebstahl</strong>';
+      }
     });
   };
+
+  // Clear any existing observer
+  if (window.ampTranslationObserver) {
+    window.ampTranslationObserver.disconnect();
+  }
 
   const initTranslation = () => {
     const cart = document.querySelector('#slidecarthq');
@@ -79,14 +98,14 @@ This file is automatically maintained by Frosty. Each entry represents a trouble
 
     translateCart();
 
-    const observer = new MutationObserver(() => {
+    window.ampTranslationObserver = new MutationObserver(() => {
       clearTimeout(window.ampTranslationTimeout);
       window.ampTranslationTimeout = setTimeout(() => {
         translateCart();
       }, 100);
     });
 
-    observer.observe(cart, { childList: true, subtree: true });
+    window.ampTranslationObserver.observe(cart, { childList: true, subtree: true });
   };
 
   if (document.readyState === 'complete') {
@@ -96,6 +115,10 @@ This file is automatically maintained by Frosty. Each entry represents a trouble
   }
 })();
 \`\`\`
+- **Key Learnings:**
+  - Use `textContent` instead of `innerText` when CSS `text-transform: uppercase` is applied, as `innerText` returns the visually transformed text.
+  - Target specific CSS classes directly instead of relying on text matching to avoid race conditions with leaf-node vs. container translations.
+  - Always disconnect previous observers before re-injecting to prevent duplicate observers.
 - **Verified by Jall:** Yes
 
 ### [2026-06-09] Pre-order Button Alpine.js Override Fix

@@ -19,24 +19,29 @@ Updating `innerHTML` or `innerText` inside a `MutationObserver` can trigger a ne
 
 ### 2. Implement Surgical Translation
 Avoid bulk `innerHTML` replacements on the root. Instead:
-- **Target Leaf Nodes:** Iterate through all elements and only replace text in elements that have no children (`el.children.length === 0`).
-- **Target Specific Classes:** Use specific CSS selectors for dynamic counts (e.g., `.rewards-tiers-labels-item-amount`).
+- **Target Specific Classes:** Use specific CSS selectors for dynamic counts (e.g., `.rewards-tiers-labels-item-amount`) and text elements (e.g., `.rewards-tiers-labels-item-label`).
+- **Use `textContent` instead of `innerText`:** When CSS `text-transform: uppercase` is applied, `innerText` returns the visually transformed text (e.g., "GRATIS VERZENDING" instead of "Gratis verzending"). Use `textContent` to get the actual DOM text.
+- **Check `innerHTML` for Already-Applied Translations:** Use `el.innerHTML.includes('targetText')` to check if a translation was already applied, preventing duplicate updates.
 
 ### 3. Prevent Loops (The Debounce)
-Always wrap the translation logic in a debounced function to batch mutations.
+Always wrap the translation logic in a debounced function to batch mutations. Use `clearTimeout` before setting a new timeout to prevent multiple pending executions.
 
 ```javascript
-function debounce(func, wait) {
-  let timeout;
-  return function(...args) {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(this, args), wait);
-  };
-}
+const observer = new MutationObserver(() => {
+  clearTimeout(window.ampTranslationTimeout);
+  window.ampTranslationTimeout = setTimeout(() => {
+    translateCart();
+  }, 100);
+});
+```
 
-const debouncedTranslate = debounce(translateCart, 100);
-const observer = new MutationObserver(debouncedTranslate);
-observer.observe(rootElement, { childList: true, subtree: true });
+### 4. Clean Up Previous Observers
+Before re-injecting the script (e.g., during debugging), disconnect any existing observer to prevent duplicate observers:
+
+```javascript
+if (window.ampTranslationObserver) {
+  window.ampTranslationObserver.disconnect();
+}
 ```
 
 ### 4. Verification
