@@ -14,8 +14,7 @@ Use when Jall reports issues with AMP Shopify stores — broken layouts, validat
 ## Prerequisites (MANDATORY — DO NOT SKIP ANY)
 
 1. **Check verified-fixes.md FIRST.** Read `knowledge/amp-context/verified-fixes.md` and search for similar issues (same store, same symptom, same element). If a match exists, use that fix as your starting point. If you skip this step, you risk wasting time re-solving a problem that's already been fixed.
-2. Read `knowledge/amp-context/shopify_best_practices.md` for the Shopify debugging playbook
-3. Read `knowledge/amp-context/amp-products-context.md` for BIS & Slide Cart DOM structure
+2. If you need Shopify debugging best practices, BIS/Slide Cart DOM structure, or any deep AMP context — use the **Gemini Google Drive tab** (see AGENTS.md for instructions).
 
 ## Tools — Chrome DevTools MCP ONLY
 
