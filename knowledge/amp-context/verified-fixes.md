@@ -13,6 +13,7 @@ This file is automatically maintained by Frosty. Each entry represents a trouble
 // Updated integration script with early exits and unified visibility sync
 // See session log for full implementation
 \`\`\`
+- **Verified by Jall:** Yes
 
 ### [2026-06-08] Slide Cart German Translation (Bomique)
 - **Store URL:** https://bomique.nl/
@@ -98,7 +99,7 @@ This file is automatically maintained by Frosty. Each entry represents a trouble
 
     translateCart();
 
-    window.ampTranslationObserver = new MutationObserver(() => {
+    windowPampTranslationObserver = new MutationObserver(() => {
       clearTimeout(window.ampTranslationTimeout);
       window.ampTranslationTimeout = setTimeout(() => {
         translateCart();
@@ -233,5 +234,34 @@ This file is automatically maintained by Frosty. Each entry represents a trouble
 \`\`\`
 - **Verified by Jall:** Yes
 
+### [2026-06-10] Slide Cart App Embed Not Firing
+- **Store URL:** https://41psxk-0d.myshopify.com/
+- **Issue:** App embed active in Shopify admin but script not injected into storefront HTML.
+- **Fix Description:** Implemented "Fast Mode" manual script injection in theme.liquid to bypass the broken app embed link.
+- **Script:**
+\`\`\`html
+<script>
+  window.SLIDECART = true;
+  window.SLIDECART_FORMAT = "{{ shop.money_format }}";
+</script>
+<script src="https://cdn.jsdelivr.net/gh/apphq/slidecart-dist@master/slidecarthq.js" async></script>
+\`\`\`
+- **Verified by Jall:** Yes
 
-
+### [2026-06-10] Slide Cart Checkout Button Vertical Centering
+- **Store URL:** https://41psxk-0d.myshopify.com/
+- **Issue:** Checkout button text not vertically centered due to fixed height and line-height conflicts.
+- **Fix Description:** Implemented Flexbox centering and normalized line-height to ensure a perfectly centered call-to-action.
+- **Script:**
+\`\`\`css
+#slidecart-checkout-form button.button.full {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: normal !important;
+  padding: 15px 20px !important;
+  height: auto !important;
+  min-height: 52px !important;
+}
+\`\`\`
+- **Verified by Jall:** Yes
