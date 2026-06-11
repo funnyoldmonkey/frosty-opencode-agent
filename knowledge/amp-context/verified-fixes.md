@@ -88,7 +88,6 @@ This file is automatically maintained by Frosty. Each entry represents a trouble
     });
   };
 
-  // Clear any existing observer
   if (window.ampTranslationObserver) {
     window.ampTranslationObserver.disconnect();
   }
@@ -262,6 +261,77 @@ This file is automatically maintained by Frosty. Each entry represents a trouble
   padding: 15px 20px !important;
   height: auto !important;
   min-height: 52px !important;
+}
+\`\`\`
+- **Verified by Jall:** Yes
+
+### [2026-06-12] BIS App Block Conflict & Modal Trigger Fix
+- **Store URL:** https://m37o2oa50lmxergl-57712541891.shopifypreview.com/
+- **Issue:** BIS button disappeared/flickered on variant change, and the modal wouldn't open. Caused by App Block "removal wars" and broken `BIS.detectVariant` API.
+- **Fix Description:** Implemented a non-destructive sync strategy. Instead of deleting app buttons, it uses `[id^="BIS_trigger"]` to match any BIS button (App Block or custom). It bypasses `BIS.detectVariant` by reading radio buttons directly and uses `BIS.popup.show(vid)` for reliable modal triggering.
+- **Script:**
+\`\`\`javascript
+if (BIS.urlIsProductPage() === true) {
+  BIS.popup.ready.then(function () {
+    if (BIS.popup.variants.length < 1) return;
+    function getCheckedVariantId() {
+      var radio = document.querySelector('input[type="radio"]:checked[data-option-value-id]');
+      if (radio) return Number(radio.getAttribute('data-option-value-id'));
+      var detected = BIS.detectVariant(BIS.popup);
+      return detected ? detected.id : null;
+    }
+    function getBisButton() {
+      return document.querySelector('[id^="BIS_trigger"]');
+    }
+    function syncBisButton() {
+      try {
+        var anchor = document.querySelector('.product-form__submit');
+        if (!anchor) return;
+        var btn = getBisButton();
+        if (!btn) {
+          btn = document.createElement('button');
+          btn.setAttribute('id', 'BIS_trigger');
+          btn.setAttribute('class', 'product-form__submit button button--full-width BIS_trigger');
+          btn.setAttribute('type', 'button');
+          var caption = BIS.currentButtonCaption() || 'NOTIFY ME';
+          btn.textContent = caption;
+          btn.setAttribute('aria-label', caption);
+          anchor.insertAdjacentElement('afterend', btn);
+        }
+        var vId = getCheckedVariantId();
+        var fullVariant = vId && BIS.popup.variants.find(function (v) {
+          return v.id === vId;
+        });
+        if (fullVariant && BIS.popup.variantIsUnavailable(fullVariant)) {
+          btn.setAttribute('data-variant-id', String(fullVariant.id));
+          btn.style.display = 'block';
+        } else {
+          btn.style.display = 'none';
+        }
+      } catch (e) {
+        console.log('BIS sync error:', e);
+      }
+    }
+    syncBisButton();
+    setInterval(syncBisButton, 500);
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.getAttribute('data-option-value-id')) {
+        syncBisButton();
+      }
+    });
+    document.addEventListener('click', function (e) {
+      var trigger = e.target.closest('[id^="BIS_trigger"]');
+      if (!trigger) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var vid = Number(trigger.getAttribute('data-variant-id'));
+      if (!vid) return;
+      if (BIS.popup && BIS.popup.form && BIS.popup.form.selectVariant) {
+        BIS.popup.form.selectVariant(vid);
+      }
+      BIS.popup.show(vid);
+    }, true);
+  });
 }
 \`\`\`
 - **Verified by Jall:** Yes
