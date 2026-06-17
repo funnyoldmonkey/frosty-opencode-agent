@@ -387,3 +387,75 @@ if (BIS.urlIsProductPage() === true) {
 \`\`\`
 - **Verified by Jall:** Yes
 
+### [2026-06-17] Slide Cart Mobile Layout & Whitespace Optimization
+- **Store URL:** https://youandyourshealth.com/
+- **Issue:** Excessive whitespace on mobile, horizontal scrollbar on rewards section, and tier icons misaligned/cutoff on small screens.
+- **Fix Description:** Reduced padding in header, rewards, and footer. Hidden redundant footer rows. Fixed horizontal overflow using `overflow-x: clip` and centered rewards tier icons using `translateX`.
+- **Script:**
+\`\`\`css
+/* Amp CS fix — 2026-06-17 — Slide Cart mobile layout and whitespace optimization */
+@media (max-width: 750px) {
+  /* Re-center the tier icons over their labels */
+  #slidecarthq .rewards-tiers-item-icon {
+    transform: translateX(-43px) !important;
+  }
+
+  /* Prevent the last tier node's box from creating a horizontal scrollbar */
+  #slidecarthq,
+  #slidecarthq .rewards {
+    overflow-x: clip !important;
+  }
+  
+  /* Reduce header space while keeping the close button */
+  #slidecarthq .header {
+    padding: 10px !important;
+  }
+
+  /* "Zoom out" rewards section */
+  #slidecarthq .rewards {
+    padding: 25px 5px !important;
+    gap: 20px !important;
+    padding-top: 10px !important;
+  }
+
+  #slidecarthq .rewards .rewards-post-unlock-text {
+      margin-bottom: -5px !important;
+  }
+
+  /* Minimize main footer padding */
+  #slidecarthq .footer {
+    padding: 5px 5px !important;
+  }
+
+  /* Hide the Discounts row (any footer row that isn't the Total) */
+  #slidecarthq .footer-row:not(.amp-sc__footer-row--subtotal) {
+    display: none !important;
+  }
+
+  /* Always keep the Total row visible */
+  #slidecarthq .footer-row.amp-sc__footer-row--subtotal {
+    display: flex !important;
+  }
+
+  /* Remove borders between footer rows for a seamless look */
+  #slidecarthq .footer-row + .footer-row {
+    border-top: 0px solid rgba(0, 0, 0, .1) !important;
+  }
+
+  /* Minimize individual footer row padding (Zero bottom padding) */
+  #slidecarthq .footer-row {
+    padding: 5px 5px 0px !important;
+  }
+
+  /* Nudge the "X items" text up and the "X% off" text down */
+  #slidecarthq .rewards-tiers-labels-item-amount {
+    transform: translateY(-15px) !important;
+  }
+  #slidecarthq .rewards-tiers-labels-item-label {
+    transform: translateY(15px) !important;
+  }
+}
+\`\`\`
+- **Verified by Jall:** Yes
+
+
