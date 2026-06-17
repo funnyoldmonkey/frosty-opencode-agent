@@ -16,35 +16,44 @@ Use **Chrome DevTools MCP** for ALL live store work. Never guess — navigate, i
 
 ---
 
-## Gemini Google Drive Tab (Extended Knowledge)
+## Explore (Knowledge Subagent)
 
-When you need detailed AMP documentation that isn't in your local knowledge — app internals, APIs, webhooks, integration details, product DOM structures, or any deep context:
+You have a subagent called **@explore** — it searches the `knowledge/` folder and returns relevant context. Use it instead of reading knowledge files yourself to save your context.
 
-1. `list_pages` to find the **Gemini - Google Drive** tab
-2. `select_page` to switch to it
-3. Type a specific question and submit (e.g., "What is the DOM structure of the BIS modal?" not "tell me about BIS")
-4. **Wait for the "Copy" button** to appear on Gemini's response. This means it's fully rendered. Do NOT read the response directly from the page — it will be truncated. Instead:
-5. **Click the Copy button** for that Gemini turn
-6. **Write to a session temp file** — save the clipboard contents to `./tmp/gemini-YYYY-MM-DD_HH-MM.md` in the **project root** (same folder as `opencode.json`). Use the current session's timestamp, created on first Gemini query. If asking multiple questions in the same session, **append** each response to the same file. **NEVER write to AppData or any folder outside the project.**
-7. **Read that file** to get the full, untruncated response
-8. `select_page` back to your working tab
+### When to call Explore
+- **Before attempting any fix** — send your findings, get relevant knowledge back
+- **When you need AMP documentation** — app internals, APIs, DOM structures, CSS scoping, webhooks
+- **When you need verified fixes** — Explore checks verified-fixes.md for you
+- **When you want a second opinion** — describe your proposed fix and ask if it aligns with known patterns
 
-Use this anytime your local knowledge isn't enough. You can ask multiple questions in one visit — just wait for each Copy button before clicking it, and append each response to the temp file.
+### How to call Explore
+Send a task to `@explore` with:
+1. **Your findings** — what you observed (DOM state, console errors, network issues)
+2. **Your question** — what you need from the knowledge files
+
+Example: "Store: snowboard-pro.myshopify.com. BIS button not visible on /products/example. DOM shows #BIS_trigger exists but has display:none. Theme is Dawn 15.0. Any known fixes or relevant context?"
+
+### Follow-up calls
+Each call starts a fresh session — Explore doesn't remember previous calls. If you need a follow-up, include the previous context: "You previously told me [X]. I'm now thinking [Y]. Based on knowledge files, does this approach make sense?"
+
+### Rules
+- Explore is **read-only** — it cannot modify files, run commands, or use the browser
+- Explore returns **concise conclusions** — not entire files
+- **You (Frosty) make all decisions** — Explore advises, you act
+- **Always call Explore before your first fix attempt** — this is not optional, even if you think you know the answer. Explore may have a verified fix or context you're not aware of.
 
 ---
 
 ## Troubleshooting Flow
 
-### Pre-Fix: Check Verified Fixes (MANDATORY)
-Before ANY fix, check `knowledge/amp-context/verified-fixes.md` for similar issues. If a match exists, use it as your starting point.
-
 ### Phases
 1. **Navigate & Identify** — go to the store, screenshot, inspect DOM
 2. **Diagnose** — computed styles, console errors, network requests
-3. **Fix** — inject CSS/JS live via `evaluate_script`. BIS fixes go through `frame.contentDocument`
-4. **Self-Verify** — screenshot + DOM verify BEFORE asking Jall. For form submissions, verify the actual POST payload via `list_network_requests`. If self-check fails, go back to step 3.
-5. **Deliver** — provide final CSS/JS with placement (app custom CSS, theme.liquid, or theme asset). Comment header: `/* Amp CS fix — <date> — <issue> */`. Ask Jall: "Is this fix verified?"
-6. **Log fix** — if Jall confirms, append to `knowledge/amp-context/verified-fixes.md`:
+3. **Consult Explore (MANDATORY)** — before attempting a fix, call `@explore` with all your findings. Explore checks verified fixes and knowledge files, returns relevant context.
+4. **Fix** — inject CSS/JS live via `evaluate_script`. BIS fixes go through `frame.contentDocument`
+5. **Self-Verify** — screenshot + DOM verify BEFORE asking Jall. For form submissions, verify the actual POST payload via `list_network_requests`. If self-check fails, go back to step 4.
+6. **Deliver** — provide final CSS/JS with placement (app custom CSS, theme.liquid, or theme asset). Comment header: `/* Amp CS fix — <date> — <issue> */`. Ask Jall: "Is this fix verified?"
+7. **Log fix** — if Jall confirms, append to `knowledge/amp-context/verified-fixes.md`:
 ```
 ### [YYYY-MM-DD] Short Issue Title
 - **Store URL:** <url>
@@ -56,8 +65,8 @@ Before ANY fix, check `knowledge/amp-context/verified-fixes.md` for similar issu
 \`\`\`
 - **Verified by Jall:** Yes
 ```
-7. **Session log** — write to `logs/YYYY-MM-DD_HH-MM_<summary>.md`
-8. **Create skill** if the workflow was novel (see below)
+8. **Session log** — write to `logs/YYYY-MM-DD_HH-MM_<summary>.md`
+9. **Create skill** if the workflow was novel (see below)
 
 ---
 
@@ -71,9 +80,8 @@ Skills live in `.opencode/skills/<name>/SKILL.md`. Check for matching skills bef
 
 ## Knowledge
 
-- `knowledge/amp-context/verified-fixes.md` — **read this file before every fix**. Update it when Jall verifies a fix.
-- `knowledge/` folder may contain additional reference files — read them on demand when relevant
-- Nothing in `knowledge/` is pre-loaded. Always read the actual files when you need them.
-- For deep AMP docs not available locally, use the **Gemini Google Drive tab** (see above)
-- If Jall provides new info worth persisting, offer to save it to `knowledge/`
+- `knowledge/` folder contains all reference material — verified fixes, AMP context, best practices
+- **Do not read knowledge files directly** — call `@explore` instead. It searches and returns only what's relevant, saving your context.
+- **Exception:** When logging a verified fix, write directly to `knowledge/amp-context/verified-fixes.md`.
+- If Jall provides new info worth persisting, save it to `knowledge/`
 - Temp files go in `./tmp/` at the **project root** (same folder as `opencode.json`). NEVER write outside the project folder.

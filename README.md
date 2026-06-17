@@ -48,7 +48,7 @@ It gets smarter over time. Every verified fix and every new skill compounds into
 | **BIS Iframe Handling** | Knows that Back in Stock modals render inside iframes and uses `contentDocument` patterns |
 | **CSS Scoping Rules** | Always scopes fixes under app-specific IDs to avoid breaking merchant themes |
 | **Network POST Verification** | Verifies cart submissions by inspecting actual request payloads, not just page DOM |
-| **Knowledge-Driven** | Pre-loaded with Shopify best practices, AMP product DOM structure, and CSS patterns |
+| **Knowledge-Driven** | `@explore` subagent searches knowledge files on demand — verified fixes, AMP context, CSS patterns |
 
 ---
 
@@ -182,10 +182,10 @@ Open `http://127.0.0.1:5555/_stats` in your browser for a live dashboard showing
 ┌─────────────────────────────────────────────────────────┐
 │                    OpenCode Desktop                      │
 │  ┌──────────┐  ┌──────────────┐  ┌───────────────────┐  │
-│  │  Frosty  │  │  AGENTS.md   │  │  Knowledge Files  │  │
-│  │  Agent   │──│  (Rules)     │──│  (Pre-loaded)     │  │
-│  └────┬─────┘  └──────────────┘  └───────────────────┘  │
-│       │                                                  │
+│  │  Frosty  │  │  AGENTS.md   │  ┌───────────────────┐  │
+│  │  Agent   │──│  (Rules)     │  │  @explore          │  │
+│  └────┬─────┘  └──────────────┘  │  (Knowledge Search)│  │
+│       │                          └───────────────────┘  │
 │  ┌────▼──────────────────┐  ┌─────────────────────────┐  │
 │  │  Chrome DevTools MCP  │  │  Skills                 │  │
 │  │  (Browser Automation) │  │  (.opencode/skills/)    │  │
@@ -202,11 +202,11 @@ Open `http://127.0.0.1:5555/_stats` in your browser for a live dashboard showing
 
 When you give Frosty a store issue, it follows this exact sequence:
 
-1. **Check verified fixes** — searches past solutions for similar issues
-2. **Navigate** to the store URL via Chrome DevTools
-3. **Screenshot** the current state
-4. **Inspect DOM** — query elements, check computed styles, z-index, console errors
-5. **Diagnose** the root cause
+1. **Navigate** to the store URL via Chrome DevTools
+2. **Screenshot** the current state
+3. **Inspect DOM** — query elements, check computed styles, z-index, console errors
+4. **Diagnose** the root cause
+5. **Call `@explore`** — searches knowledge files for verified fixes and relevant context
 6. **Inject fix** — apply CSS/JS live via `evaluate_script`
 7. **Self-verify** — screenshot + DOM check + network POST verification
 8. **Retry if needed** — silently tries a different approach if self-check fails
@@ -221,13 +221,11 @@ When you give Frosty a store issue, it follows this exact sequence:
 ```
 knowledge/
 └── amp-context/
-    ├── shopify_best_practices.md   ← 270-line Shopify debugging playbook
-    ├── amp-products-context.md     ← BIS & Slide Cart DOM structure
     ├── verified-fixes.md           ← Growing log of confirmed fixes
     └── (your files here)           ← Drop .md files to expand knowledge
 ```
 
-All files are **automatically loaded** into Frosty's context on every session. Add new `.md` files anytime — they're picked up on the next session.
+Knowledge files are searched **on demand** by the `@explore` subagent. Frosty calls Explore before attempting fixes — it searches verified fixes and knowledge files, returning only relevant context. Add new `.md` files anytime — Explore finds them on the next call.
 
 ### Auto-Created Skills
 
@@ -287,10 +285,8 @@ frosty-opencode-agent/
 │           └── SKILL.md
 ├── knowledge/
 │   └── amp-context/
-│       ├── README.md
-│       ├── shopify_best_practices.md  ← Shopify debugging playbook
-│       ├── amp-products-context.md    ← BIS & Slide Cart DOM reference
-│       └── verified-fixes.md         ← Auto-maintained fix log
+│       ├── verified-fixes.md         ← Auto-maintained fix log
+│       └── (additional .md files)    ← Read on demand by @explore
 ├── api-key-rotator/
 │   ├── rotator.py                   ← Key rotation proxy
 │   ├── keys.txt.example             ← Template for API keys
@@ -317,7 +313,7 @@ Drop any `.md` file into `knowledge/amp-context/` with relevant information:
 - Edge cases and workarounds
 - Integration documentation
 
-Files are automatically loaded on the next session.
+Explore finds them automatically on the next call.
 
 ### Adapting for Your Apps
 

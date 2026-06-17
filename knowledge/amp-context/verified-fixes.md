@@ -335,3 +335,55 @@ if (BIS.urlIsProductPage() === true) {
 }
 \`\`\`
 - **Verified by Jall:** Yes
+
+### [2026-06-17] Slide Cart Mobile Scroll Conflict (Theme Drawer Conflict)
+- **Store URL:** https://youandyourshealth.com/
+- **Issue:** After closing Slide Cart on mobile, the page became non-scrollable. This was caused by a conflict between the theme's native cart drawer and Slide Cart when Slide Cart was set to "Drawer" mode.
+- **Fix Description:** Changed Slide Cart setting from "Drawer" to "Page" to eliminate the theme conflict (fixing the scroll issue). To prevent the "Add to Cart" action from navigating to the cart page, an integration script was implemented to intercept cart links and "Add to Cart" clicks, performing an AJAX add and then manually triggering `window.SLIDECART_OPEN()`.
+- **Script:**
+\`\`\`javascript
+(function () {
+  // 1) Cart icon / cart links -> open SlideCart instead of navigating to /cart
+  document.addEventListener('click', function (e) {
+    var link = e.target.closest('a.header-controls__cart, a[href="/cart"], a[href^="/cart?"]');
+    if (link && typeof window.SLIDECART_OPEN === 'function') {
+      e.preventDefault();
+      window.SLIDECART_OPEN();
+    }
+  }, true);
+
+  // 2) Add-to-cart: intercept the CLICK in capture phase, AJAX-add, then open SlideCart
+  //    after a 500ms delay to ensure the item is registered first.
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('button[name="add"], .product__add-to-cart-button');
+    if (!btn) return;
+    var form = btn.closest('form[action*="/cart/add"]');
+    if (!form) return;
+    if (typeof window.SLIDECART_OPEN !== 'function') return;
+
+    e.preventDefault();
+    e.stopImmediatePropagation();
+
+    btn.setAttribute('disabled', 'disabled');
+    fetch('/cart/add.js', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: new FormData(form)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function () {
+        if (typeof window.SLIDECART_UPDATE === 'function') {
+          try { return window.SLIDECART_UPDATE(); } catch (err) {}
+        }
+      })
+      .then(function () {
+        return new Promise(function (resolve) { setTimeout(resolve, 500); }); // 500ms delay
+      })
+      .then(function () { window.SLIDECART_OPEN(); })
+      .catch(function () { form.submit(); }) // fallback: native submit if AJAX fails
+      .finally(function () { btn.removeAttribute('disabled'); });
+  }, true);
+})();
+\`\`\`
+- **Verified by Jall:** Yes
+
