@@ -458,4 +458,147 @@ if (BIS.urlIsProductPage() === true) {
 \`\`\`
 - **Verified by Jall:** Yes
 
+### [2026-06-18] Slide Cart Dynamic Rewards Bar Multi-Language Translation
+- **Store URL:** https://alveraine.com/
+- **Issue:** Rewards bar translations in multiple languages (ES, IT, FR) were outdated and didn't reflect the new reward percentages (10/15/20%). Standard translation methods were insufficient for dynamic rewards content.
+- **Fix Description:** Implemented a custom translation object and hooked into Slide Cart's `SLIDECART_LOADED` and `SLIDECART_UPDATED` events to dynamically overwrite the `SLIDECART_STATE().settings.rewards_tiers` configuration. This ensures that labels, pre-unlock, and post-unlock text are translated based on the current Shopify locale. Also added a helper function to translate the "items" string in the rewards labels.
+- **Script:**
+\`\`\`html
+<style>
+  #slidecarthq .rewards .rewards-tiers-labels .rewards-tiers-labels-item .rewards-tiers-labels-item-amount {
+    white-space: nowrap;
+  }
+</style>
+<script>
+  {% raw %}
+  const customSlideCartTranslations = {
+    es: {
+      rewards: [
+        {
+          tier: 1,
+          label: '10% de descuento',
+          pre_unlock_text: 'Añade {{ amount }} más y recibe un *{{ reward }}*',
+          post_unlock_text: '{{ reward }} aplicado!',
+        },
+        {
+          tier: 2,
+          label: '15% de descuento',
+          pre_unlock_text: 'Añade {{ amount }} más y recibe un *{{ reward }}*',
+          post_unlock_text: '{{ reward }} aplicado!',
+        },
+        {
+          tier: 3,
+          label: '20% de descuento',
+          pre_unlock_text: 'Añade {{ amount }} más y recibe un *{{ reward }}*',
+          post_unlock_text: '{{ reward }} aplicado!',
+        },
+      ],
+    },
+    it: {
+      rewards: [
+        {
+          tier: 1,
+          label: '10% di sconto',
+          pre_unlock_text: 'Aggiungi {{ amount }} altro articolo e ricevi il *{{ reward }}*',
+          post_unlock_text: '{{ reward }} applicato!',
+        },
+        {
+          tier: 2,
+          label: '15% di sconto',
+          pre_unlock_text: 'Aggiungi {{ amount }} altro articolo e ricevi il *{{ reward }}*',
+          post_unlock_text: '{{ reward }} applicato!',
+        },
+        {
+          tier: 3,
+          label: '20% di sconto',
+          pre_unlock_text: 'Aggiungi {{ amount }} altro articolo e ricevi il *{{ reward }}*',
+          post_unlock_text: '{{ reward }} applicato!',
+        },
+      ],
+    },
+    fr: {
+      rewards: [
+        {
+          tier: 1,
+          label: '10% de réduction',
+          pre_unlock_text: 'Ajoutez-en {{ amount }} de plus et recevez *{{ reward }}*',
+          post_unlock_text: '{{ reward }} appliquée!',
+        },
+        {
+          tier: 2,
+          label: '15% de réduction',
+          pre_unlock_text: 'Ajoutez-en {{ amount }} de plus et recevez *{{ reward }}*',
+          post_unlock_text: '{{ reward }} appliquée!',
+        },
+        {
+          tier: 3,
+          label: '20% de réduction',
+          pre_unlock_text: 'Ajoutez-en {{ amount }} de plus et recevez *{{ reward }}*',
+          post_unlock_text: '{{ reward }} appliquée!',
+        },
+      ],
+    },
+  };
+  {% endraw %}
+
+  const UPDATE_CURRENCY_RATE = false;
+
+  var BASE_REWARD_AMOUNT;
+  window.SLIDECART_LOADED = (cart) => {
+    BASE_REWARD_AMOUNT = SLIDECART_STATE()?.settings?.rewards_tiers.map((reward) => reward.amount);
+
+    setTimeout(window.SLIDECART_UPDATE, 1200);
+  };
+
+  function translateRewardsSC(lang) {
+    let rewardsTexts = customSlideCartTranslations[lang]?.rewards;
+    let currencyRate = parseFloat(Shopify?.currency?.rate);
+
+    if (!rewardsTexts) return console.log("Rewards Translations didn't found for this lang", lang);
+
+    SLIDECART_STATE()?.settings?.rewards_tiers.forEach((reward, indx) => {
+      let currentRewardTexts = rewardsTexts[indx];
+
+      reward.label = currentRewardTexts.label;
+      reward.post_unlock_text = currentRewardTexts.post_unlock_text;
+      reward.pre_unlock_text = currentRewardTexts.pre_unlock_text;
+
+      if (currentRewardTexts.amount) {
+        reward.amount = currentRewardTexts.amount;
+      } else if (UPDATE_CURRENCY_RATE && currencyRate && BASE_REWARD_AMOUNT) {
+        reward.amount = BASE_REWARD_AMOUNT[indx] * currencyRate;
+      }
+    });
+  }
+
+  function scTranslateRewardLabels() {
+    const labelTranslations = {
+      es: 'artículos',
+      it: 'articoli',
+      fr: 'articles',
+    };
+    if (!window?.Shopify.locale) return;
+    const newLabelText = labelTranslations[window.Shopify.locale];
+
+    if (!newLabelText) {
+      console.log(\`Slide Cart: reward label translation for \${window.Shopify.locale} not found.\`);
+      return;
+    }
+
+    const scRewardLabels = document.querySelectorAll('#slidecarthq .rewards .rewards-tiers-labels-item .rewards-tiers-labels-item-amount');
+    scRewardLabels.forEach((label) => {
+      label.textContent = label.textContent.replace('items', newLabelText);
+    });
+  }
+
+  window.SLIDECART_UPDATED = (cart) => {
+    let customerLenguage = window.Shopify?.locale;
+    scTranslateRewardLabels();
+    translateRewardsSC(customerLenguage);
+  };
+</script>
+\`\`\`
+- **Verified by Jall:** Yes
+
+
 

@@ -17,15 +17,44 @@ Updating `innerHTML` or `innerText` inside a `MutationObserver` can trigger a ne
 - Identify the root container (e.g., `#slidecarthq`).
 - List all "Old Text" $\rightarrow$ "New Text" mappings, including required HTML tags (like `<strong>`).
 
-### 2. Implement Surgical Translation
+### 2. Implement Translation Strategy
+
+#### Option A: State-Based Translation (Preferred for Slide Cart Rewards)
+If the app provides state hooks, overwrite the configuration before the app renders. This is the most stable method and avoids performance issues.
+
+- **Hooks:** Use `window.SLIDECART_LOADED` and `window.SLIDECART_UPDATED`.
+- **Mechanism:** Access `SLIDECART_STATE().settings` and modify the target properties (e.g., `rewards_tiers`).
+- **Example Pattern:**
+```javascript
+window.SLIDECART_UPDATED = (cart) => {
+  const lang = window.Shopify?.locale;
+  const translations = {
+    es: { rewards: [{ label: '10% de descuento', ... }] },
+    // ... other languages
+  };
+  
+  const rewardsTexts = translations[lang]?.rewards;
+  if (!rewardsTexts) return;
+
+  SLIDECART_STATE()?.settings?.rewards_tiers.forEach((reward, idx) => {
+    const t = rewardsTexts[idx];
+    if (t) {
+      reward.label = t.label;
+      reward.pre_unlock_text = t.pre_unlock_text;
+      reward.post_unlock_text = t.post_unlock_text;
+    }
+  });
+};
+```
+
+#### Option B: Surgical DOM Translation (Use for non-state elements)
 Avoid bulk `innerHTML` replacements on the root. Instead:
 - **Target Specific Classes:** Use specific CSS selectors for dynamic counts (e.g., `.rewards-tiers-labels-item-amount`) and text elements (e.g., `.rewards-tiers-labels-item-label`).
-- **Use `textContent` instead of `innerText`:** When CSS `text-transform: uppercase` is applied, `innerText` returns the visually transformed text (e.g., "GRATIS VERZENDING" instead of "Gratis verzending"). Use `textContent` to get the actual DOM text.
-- **Check `innerHTML` for Already-Applied Translations:** Use `el.innerHTML.includes('targetText')` to check if a translation was already applied, preventing duplicate updates.
+- **Use `textContent` instead of `innerText`:** When CSS `text-transform: uppercase` is applied, `innerText` returns the visually transformed text. Use `textContent` to get the actual DOM text.
+- **Check `innerHTML` for Already-Applied Translations:** Use `el.innerHTML.includes('targetText')` to check if a translation was already applied.
 
-### 3. Prevent Loops (The Debounce)
-Always wrap the translation logic in a debounced function to batch mutations. Use `clearTimeout` before setting a new timeout to prevent multiple pending executions.
-
+### 3. Prevent Loops (The Debounce - Required for Option B)
+If using a `MutationObserver`, always wrap the translation logic in a debounced function:
 ```javascript
 const observer = new MutationObserver(() => {
   clearTimeout(window.ampTranslationTimeout);
@@ -35,9 +64,8 @@ const observer = new MutationObserver(() => {
 });
 ```
 
-### 4. Clean Up Previous Observers
-Before re-injecting the script (e.g., during debugging), disconnect any existing observer to prevent duplicate observers:
-
+### 4. Clean Up Previous Observers (Required for Option B)
+Before re-injecting the script, disconnect any existing observer:
 ```javascript
 if (window.ampTranslationObserver) {
   window.ampTranslationObserver.disconnect();
