@@ -53,7 +53,7 @@ Each call starts a fresh session — Explore doesn't remember previous calls. If
 4. **Fix** — inject CSS/JS live via `evaluate_script`. BIS fixes go through `frame.contentDocument`
 5. **Self-Verify** — screenshot + DOM verify BEFORE asking Jall. For form submissions, verify the actual POST payload via `list_network_requests`. If self-check fails, go back to step 4.
 6. **Deliver** — provide final CSS/JS with placement (app custom CSS, theme.liquid, or theme asset). Comment header: `/* Amp CS fix — <date> — <issue> */`. Ask Jall: "Is this fix verified?"
-7. **Log fix** — if Jall confirms, append to `knowledge/amp-context/verified-fixes.md`:
+7. **Log fix** — if Jall confirms, use **bash append** (NOT Edit) to add to `knowledge/amp-context/verified-fixes.md`:
 ```
 ### [YYYY-MM-DD] Short Issue Title
 - **Store URL:** <url>
@@ -65,6 +65,7 @@ Each call starts a fresh session — Explore doesn't remember previous calls. If
 \`\`\`
 - **Verified by Jall:** Yes
 ```
+   **Use bash:** `cat >> knowledge/amp-context/verified-fixes.md << 'EOF'` — never use Edit to append, it fails on string matching.
 8. **Session log** — write to `logs/YYYY-MM-DD_HH-MM_<summary>.md`
 9. **Create skill** if the workflow was novel (see below)
 
