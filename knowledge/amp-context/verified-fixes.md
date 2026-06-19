@@ -600,5 +600,205 @@ if (BIS.urlIsProductPage() === true) {
 \`\`\`
 - **Verified by Jall:** Yes
 
-
+### [2026-06-19] Slide Cart Two-Column Layout with Styled Upsells (A Perfect Nomad)
+- **Store URL:** https://www.aperfectnomad.com/
+- **Issue:** Merchant wanted a redesigned slide cart: two-column desktop layout with "Why not add..." upsells on the left (portrait images, italic serif headers, outline ADD buttons) and the cart on the right. Mobile should show upsells inside the cart. Multiple sub-issues discovered and fixed: upsell images capped at 80px by CSS variable `--amp-sc-outside-upsell-thumb-size`, carousel overlap from `flex-wrap: wrap` + `flex-direction: column`, pro-upsells flickering on cart update (app removes/re-adds element), variant selector popups stacking on mobile, cart overflowing narrow phones.
+- **Fix Description:** CSS-only fix (v11). Desktop: pro-upsells sidebar at 280px flush against cart using `.slidecarthq-overlay.open .pro-upsells.amp-sc { right: 360px }`, fade-in animation on re-render, `flex-wrap: nowrap` + `overflow-x: hidden` to prevent carousel, hidden scrollbar, `margin-top: auto` on discount-box to pin footer. Mobile: cart capped to `100%` width, overlay/option popups hidden with `display: none`, in-cart upsells shown with full-width aligned items, portrait images at 80×110px, consistent row layout. Both: italic serif headers, portrait product images, 4px corner rounding on buttons, outline-style ADD buttons.
+- **Key Learnings:**
+  - `--amp-sc-outside-upsell-thumb-size` CSS variable caps upsell image height at 80px via `max-height`. Override to `none` and add `max-height: none !important` with `.amp-sc` specificity.
+  - Pro-upsells container has `flex-wrap: wrap` by default — combined with `flex-direction: column`, items wrap horizontally creating a broken carousel. Fix with `flex-wrap: nowrap`.
+  - App removes and re-adds `.pro-upsells` on every cart update. CSS `animation` on the element triggers on re-insertion, providing a smooth fade-in.
+  - Use `.slidecarthq-overlay.open` to scope pro-upsells visibility to cart-open state, and `:not(.open)` to fully hide when closed.
+  - Mobile upsells (`.upsells.mobile-only`) contain fixed-position `.upsell-options` and `.upsell-options-overlay` elements (10 each) that all become visible when parent is forced to display. Must explicitly hide these.
+  - Cart title text is inside an `<a>` tag — selector needs `#slidecarthq .slidecarthq.amp-sc .item .title a` for italic to work.
+  - Pro-upsells lives inside `.slidecarthq-overlay`, NOT as a sibling of the cart panel. Using `::before` pseudo on the cart to create a background behind pro-upsells will cover the pro-upsells content due to stacking context.
+- **Placement:** Slide Cart app → Custom CSS field (CSS-only, no JS needed)
+- **CSS:**
+```css
+/* AMP Fix: Slide Cart two-column layout with styled upsells — v11 (CSS-only) */
+/* Store: aperfectnomad.com */
+/* Placement: Slide Cart app > Custom CSS field */
+@keyframes amp-upsells-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* ===================== DESKTOP ===================== */
+@media (min-width: 769px) {
+  #slidecarthq .pro-upsells.amp-sc {
+    --amp-sc-outside-upsell-thumb-size: none !important;
+  }
+  #slidecarthq .slidecarthq.amp-sc { border-radius: 0 !important; }
+  #slidecarthq .pro-upsells { animation: amp-upsells-fade-in 0.15s ease-out !important; }
+  #slidecarthq .slidecarthq .header > span {
+    font-style: italic !important;
+    font-family: "Times New Roman", Times, serif !important;
+  }
+  #slidecarthq .slidecarthq.amp-sc .item .title,
+  #slidecarthq .slidecarthq.amp-sc .item .title a { font-style: italic !important; }
+  #slidecarthq .slidecarthq .rewards-unlock-text,
+  #slidecarthq .slidecarthq .rewards-unlock-text p,
+  #slidecarthq .slidecarthq .rewards-post-unlock-text,
+  #slidecarthq .slidecarthq .rewards-post-unlock-text p,
+  #slidecarthq .slidecarthq .rewards-pre-unlock-text,
+  #slidecarthq .slidecarthq .rewards-pre-unlock-text p { font-style: italic !important; }
+  #slidecarthq .slidecarthq .item .item-image-anchor {
+    width: 110px !important; height: 160px !important; flex-shrink: 0 !important;
+  }
+  #slidecarthq .slidecarthq .item .item-image-anchor img {
+    width: 100% !important; height: 100% !important; object-fit: cover !important;
+    border-radius: 4px !important; aspect-ratio: auto !important;
+  }
+  #slidecarthq .pro-upsells {
+    width: 280px !important;
+    background-color: rgb(251, 251, 248) !important;
+    border-radius: 0 !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+    padding: 30px 24px 24px !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    margin: 0 !important;
+  }
+  #slidecarthq .slidecarthq-overlay.open .pro-upsells.amp-sc {
+    right: 360px !important;
+    top: 16px !important;
+    bottom: 16px !important;
+  }
+  #slidecarthq .slidecarthq-overlay:not(.open) .pro-upsells {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+  #slidecarthq .pro-upsells .container {
+    gap: 30px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    flex-wrap: nowrap !important;
+    flex: 1 !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  #slidecarthq .pro-upsells .container::-webkit-scrollbar {
+    display: none !important; width: 0 !important; height: 0 !important;
+  }
+  #slidecarthq .pro-upsells .upsells-header { margin-bottom: 20px !important; }
+  #slidecarthq .pro-upsells .upsells-header span {
+    font-style: italic !important; font-size: 22px !important; font-weight: 400 !important;
+    font-family: "Times New Roman", Times, serif !important;
+  }
+  #slidecarthq .pro-upsells .upsell-image,
+  #slidecarthq .pro-upsells.amp-sc .upsell-image {
+    width: 100% !important; height: auto !important; max-height: none !important; margin: 0 !important;
+  }
+  #slidecarthq .pro-upsells .upsell-image a,
+  #slidecarthq .pro-upsells.amp-sc .upsell-image a {
+    display: block !important; width: 100% !important; height: auto !important;
+  }
+  #slidecarthq .pro-upsells .upsell-image img,
+  #slidecarthq .pro-upsells.amp-sc .upsell-image img {
+    width: 100% !important; height: auto !important; max-height: none !important;
+    aspect-ratio: 2 / 3 !important; object-fit: cover !important; border-radius: 0 !important;
+  }
+  #slidecarthq .pro-upsells .upsell-item {
+    flex-direction: column !important; align-items: stretch !important; gap: 6px !important;
+  }
+  #slidecarthq .pro-upsells .upsell-text {
+    flex-direction: column !important; align-items: flex-start !important; text-align: left !important;
+  }
+  #slidecarthq .pro-upsells .upsell-text p {
+    font-style: italic !important; font-size: 13px !important; margin: 0 !important;
+  }
+  #slidecarthq .pro-upsells .upsell-text-prices { font-size: 14px !important; }
+  #slidecarthq .pro-upsells .upsell-add { width: 100% !important; }
+  #slidecarthq .pro-upsells .upsell-add button {
+    background-color: transparent !important; color: #000 !important;
+    border: 1px solid #000 !important; border-radius: 0 !important;
+    width: 100% !important; padding: 10px 14px !important; font-size: 11px !important;
+    text-transform: uppercase !important; letter-spacing: 0.08em !important;
+    cursor: pointer !important; transition: background-color 0.2s, color 0.2s !important;
+  }
+  #slidecarthq .pro-upsells .upsell-add button:hover {
+    background-color: #000 !important; color: #fff !important;
+  }
+  #slidecarthq .slidecarthq .discount-box { margin-top: auto !important; }
+  #slidecarthq .slidecarthq .footer { margin-top: 0 !important; }
+  #slidecarthq .slidecarthq .footer .button.full { border-radius: 4px !important; }
+  #slidecarthq .slidecarthq .discount-box input,
+  #slidecarthq .slidecarthq .discount-box button { border-radius: 4px !important; }
+  #slidecarthq .slidecarthq .header { border-radius: 0 !important; }
+}
+/* ===================== MOBILE ===================== */
+@media (max-width: 768px) {
+  #slidecarthq .pro-upsells { display: none !important; }
+  #slidecarthq .slidecarthq.amp-sc { max-width: 100% !important; width: 100% !important; }
+  #slidecarthq .slidecarthq .upsells .upsell-options-overlay {
+    display: none !important; opacity: 0 !important; pointer-events: none !important;
+  }
+  #slidecarthq .slidecarthq .upsells .upsell-options { display: none !important; }
+  #slidecarthq .slidecarthq .upsells.mobile-only,
+  #slidecarthq .slidecarthq .upsells.upsells-stacked-container {
+    display: flex !important; flex-direction: column !important;
+    padding: 16px !important; border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+  }
+  #slidecarthq .slidecarthq .upsells-header.mobile-only {
+    display: block !important; margin-bottom: 12px !important; text-align: center !important;
+  }
+  #slidecarthq .slidecarthq .upsells-header span {
+    font-style: italic !important; font-size: 18px !important; font-weight: 400 !important;
+    font-family: "Times New Roman", Times, serif !important;
+  }
+  #slidecarthq .slidecarthq .upsells-stacked.mobile-only {
+    display: flex !important; flex-direction: column !important; gap: 12px !important;
+  }
+  #slidecarthq .slidecarthq .upsells .upsell.multi { display: block !important; width: 100% !important; }
+  #slidecarthq .slidecarthq .upsells .upsell-item {
+    display: flex !important; flex-direction: row !important; gap: 10px !important;
+    align-items: center !important; width: 100% !important; padding: 12px !important;
+    background: rgba(0, 0, 0, 0.02) !important; border-radius: 4px !important;
+  }
+  #slidecarthq .slidecarthq .upsells .upsell-image {
+    width: 80px !important; height: 110px !important; flex-shrink: 0 !important; overflow: hidden !important;
+  }
+  #slidecarthq .slidecarthq .upsells .upsell-image a {
+    display: block !important; width: 100% !important; height: 100% !important;
+  }
+  #slidecarthq .slidecarthq .upsells .upsell-image img {
+    width: 80px !important; height: 110px !important; object-fit: cover !important;
+    border-radius: 0 !important; max-height: none !important;
+  }
+  #slidecarthq .slidecarthq .upsells .upsell-text { flex: 1 !important; min-width: 0 !important; }
+  #slidecarthq .slidecarthq .upsells .upsell-text p {
+    font-style: italic !important; font-size: 13px !important;
+  }
+  #slidecarthq .slidecarthq .upsells .upsell-add { flex-shrink: 0 !important; }
+  #slidecarthq .slidecarthq .upsells .upsell-add button {
+    background-color: transparent !important; color: #000 !important;
+    border: 1px solid #000 !important; border-radius: 0 !important;
+    padding: 8px 14px !important; font-size: 11px !important; text-transform: uppercase !important;
+  }
+  #slidecarthq .slidecarthq .item .item-image-anchor {
+    width: 80px !important; height: 110px !important; flex-shrink: 0 !important;
+  }
+  #slidecarthq .slidecarthq .item .item-image-anchor img {
+    width: 100% !important; height: 100% !important; object-fit: cover !important; max-height: none !important;
+  }
+  #slidecarthq .slidecarthq.amp-sc .item .title,
+  #slidecarthq .slidecarthq.amp-sc .item .title a { font-style: italic !important; }
+  #slidecarthq .slidecarthq .rewards-unlock-text,
+  #slidecarthq .slidecarthq .rewards-unlock-text p,
+  #slidecarthq .slidecarthq .rewards-post-unlock-text p,
+  #slidecarthq .slidecarthq .rewards-pre-unlock-text p { font-style: italic !important; }
+  #slidecarthq .slidecarthq .header > span {
+    font-style: italic !important; font-family: "Times New Roman", Times, serif !important;
+  }
+  #slidecarthq .slidecarthq.amp-sc { border-radius: 0 !important; }
+  #slidecarthq .slidecarthq .footer .button.full { border-radius: 4px !important; }
+  #slidecarthq .slidecarthq .discount-box input,
+  #slidecarthq .slidecarthq .discount-box button { border-radius: 4px !important; }
+  #slidecarthq .slidecarthq .header { border-radius: 0 !important; }
+}
+```
+- **Verified by Jall:** Yes
 
