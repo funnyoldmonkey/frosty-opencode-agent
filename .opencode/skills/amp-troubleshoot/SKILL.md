@@ -1,122 +1,79 @@
 ---
 name: amp-troubleshoot
-description: Troubleshoot AMP Shopify store issues using Chrome DevTools MCP. Includes self-verification, network POST checking, and auto skill creation.
+description: Orchestrate AMP Shopify store troubleshooting — @diagnose investigates, @explore searches knowledge, Frosty checks skills, fixes directly, and verifies.
 ---
 
 ## What I Do
 
-Debug and troubleshoot AMP-related issues on Shopify stores using Chrome DevTools MCP (`evaluate_script`, `take_screenshot`, `navigate_page`, `lighthouse_audit`, `list_network_requests`) for navigation, DOM inspection, and live fix testing.
+Orchestrate troubleshooting of AMP-related issues on Shopify stores. `@diagnose` handles heavy investigation, `@explore` searches knowledge, Frosty fixes and verifies directly.
 
 ## When to Use Me
 
 Use when Jall reports issues with AMP Shopify stores — broken layouts, validation errors, cache problems, missing widgets, performance degradation, or any BIS/Slide Cart theme issue.
 
-## Prerequisites (MANDATORY — DO NOT SKIP ANY)
+## Steps — ALL MANDATORY
 
-1. **Call @explore FIRST.** Send your initial findings and ask it to search verified fixes and knowledge files for relevant context. If you skip this step, you risk wasting time re-solving a problem that's already been fixed.
-2. If you need additional AMP context mid-session, call `@explore` again with your updated findings and question.
+### Phase 1: Diagnose
+Call `@diagnose` with the store URL and issue description. Be specific about what to check.
 
-## Tools — Chrome DevTools MCP ONLY
+@diagnose returns structured findings: store URL, theme, elements, computed styles, console errors, network issues, JS state, root cause, confidence.
 
-| Task | Tool |
-|---|---|
-| Navigate to store URL | `navigate_page` |
-| Take screenshots | `take_screenshot` |
-| Inspect/modify DOM | `evaluate_script` |
-| Inject CSS/JS fixes | `evaluate_script` |
-| Check network requests | `list_network_requests` / `get_network_request` |
-| Performance audit | `lighthouse_audit` |
-| Mobile viewport | `resize_page` |
-| Click elements | `click` |
-| Fill inputs | `fill` / `type_text` |
-| Check console errors | `list_console_messages` |
+**If confidence is medium/low:** Call `@diagnose` again with the previous findings and follow-up questions. Max 3 rounds.
 
-## Steps
+### Phase 2: Explore
+Call `@explore` with your combined diagnosis. Ask for verified fixes and relevant context.
 
-### Phase 1: Navigate & Identify
-1. **Get the store URL** from Jall
-2. **Navigate** to the store page
-3. **Take a screenshot** to see current state
+### Phase 3: Check Skills
+Run `ls .opencode/skills/` and read any matching skill. Decide if a skill applies and use its steps if so.
 
-### Phase 2: Inspect with Chrome DevTools
-4. **Inspect DOM** (`evaluate_script`) — query for relevant app elements:
-   ```javascript
-   document.querySelector('#slidecarthq')?.outerHTML  // Slide Cart
-   document.querySelector('#BIS_trigger')?.outerHTML   // BIS trigger
-   document.querySelector('#BIS_frame')               // BIS iframe
-   ```
-5. **Check for BIS iframe** — if debugging BIS modal, it's inside `#BIS_frame` iframe. Use `evaluate_script` to access `frame.contentDocument` (regular DOM queries CANNOT see inside it)
-6. **Diagnose** (`evaluate_script`) — check computed styles, z-index, CSS size, element visibility
+### Phase 4: Fix
+`list_pages` → `select_page` to the store tab. Inject CSS/JS live via `evaluate_script`.
 
-### Phase 3: Test Fix Live
-7. **Inject CSS/JS** (`evaluate_script`) to apply the fix live
-8. **For BIS iframe fixes** — MUST go through `frame.contentDocument` (see iframe pattern below)
-
-### Phase 4: Self-Verify (BEFORE asking Jall)
-9. **Screenshot after fix** (`take_screenshot`) — visually confirm it worked
-10. **DOM verify** (`evaluate_script`) — programmatically confirm the fix (check element exists, style applied, etc.)
-11. **For cart/form submissions** — use `list_network_requests` to intercept the actual POST data and verify the correct variant/data was sent. Do NOT just check the resulting page DOM — verify the actual request payload.
-12. **If self-check fails** — do NOT ask Jall. Go back to Phase 3 and try a different approach. Repeat until it works.
-
-### Phase 5: Deliver & Log
-13. **Provide the final CSS/JS** to Jall with clear placement instructions:
-    - Where to put it (app custom CSS field, theme.liquid, or theme asset)
-    - Include comment header: `/* Amp CS fix — <date> — <issue> */`
-14. **Ask Jall to verify:** "Is this fix verified and working?"
-15. **If verified**, log to `knowledge/amp-context/verified-fixes.md` using the format from AGENTS.md
-
-### Phase 6: Create Skill (MANDATORY if workflow was novel)
-16. **If this debugging session involved a novel pattern**, create a new skill:
-    - Create `.opencode/skills/<name>/SKILL.md` with proper YAML frontmatter
-    - Include the specific steps, code patterns, and gotchas you discovered
-    - Verify the file was actually written by reading it back
-    - Notify Jall: "New skill created: `<name>` — <reason>"
-    - **If you announce a skill but don't write the file, you have failed this step**
-
-## BIS Modal Iframe Pattern (CRITICAL)
-
+**BIS iframe pattern:**
 ```javascript
 const frame = document.querySelector('#BIS_frame');
 const innerDoc = frame.contentDocument || frame.contentWindow.document;
-
-// Inject CSS into iframe
 const style = innerDoc.createElement('style');
 style.textContent = `/* your CSS here */`;
 innerDoc.head.appendChild(style);
-
-// Query elements inside iframe
-const modal = innerDoc.querySelector('#BISModal');
 ```
 
-## Network POST Verification Pattern
-
-For cart/form submission issues, verify the actual data sent:
-```javascript
-// After clicking Add to Cart, check network requests for the POST to /cart/add
-// The request body should contain the correct variant ID
-```
-Use `list_network_requests` to find the `/cart/add` POST, then `get_network_request` to inspect its payload.
-
-## CSS Scoping Rule
-
-Always scope CSS under app IDs:
+**CSS scoping — ALWAYS scope under app IDs:**
 - `#slidecarthq` for Slide Cart
 - `#BIS_trigger` or `#BISModal` for BIS
 
-## Where to Place CSS Fixes (priority order)
+For multi-issue tickets, fix and verify one issue at a time.
 
-1. **App custom CSS field** (BIS or Slide Cart settings) — survives theme changes
-2. **`<style>` block in theme.liquid** before `</head>` — for early-loading fixes
-3. **Theme custom CSS asset** — acceptable but harder to track
+### Phase 5: Self-Verify
+Screenshot + DOM check. For mobile issues, resize viewport first. For form submissions, verify the POST payload via `list_network_requests`.
+
+If fix didn't work — adjust and go back to Phase 4.
+If completely failed — call `@explore` with failure context, re-check skills, try different approach. Can also call `@diagnose` to re-investigate why the fix didn't work.
+
+**CSS fix placement priority:**
+1. App custom CSS field (BIS or Slide Cart settings) — survives theme changes
+2. `<style>` block in theme.liquid before `</head>`
+3. Theme custom CSS asset
 
 Always include: `/* Amp CS fix — <date> — <issue description> */`
 
+### Phase 6: Deliver
+Provide fix code + placement to Jall. Ask "Is this fix verified?"
+
+### Phase 7: Log Fix
+If Jall confirms, append to `knowledge/amp-context/verified-fixes.md`. **Method:** Write the new entry to `tmp/verified-fix-entry.md` (Write tool), then `python -c "open('knowledge/amp-context/verified-fixes.md','a').write(open('tmp/verified-fix-entry.md').read())"`, then delete the temp file. NEVER pass markdown through PowerShell. See AGENTS.md Phase 7 for template.
+
+### Phase 8: Session Log
+Write to `logs/YYYY-MM-DD_HH-MM_<summary>.md`.
+
+### Phase 9: Create Skill
+If the workflow was novel, create `.opencode/skills/<name>/SKILL.md`. Check existing skills first — update instead of duplicating. Use kebab-case naming (`<app>-<issue-type>`), YAML frontmatter (`name`, `description`), then `## Problem`, `## Workflow`, `## Verification`. Don't ask — just do it and notify Jall.
+
 ## Common Issues Quick Reference
 
+- **BIS modal behind elements:** z-index on `#BIS_frame` — inject via iframe contentDocument
+- **Slide Cart under header:** z-index on `#slidecarthq`
 - **Cache not updating:** Check webhook firing, try AMP Cache purge API
 - **Validation errors:** Strip invalid HTML/JS, wrap in `<amp-iframe>` if needed
 - **CSS overflow:** Minify, remove unused classes, check `<style amp-custom>` size
 - **Missing 3rd-party widgets:** Check native AMP integration support, use `<amp-iframe>` fallback
-- **BIS modal behind elements:** z-index on `#BIS_frame` via `evaluate_script` into iframe's contentDocument
-- **Slide Cart under header:** z-index on `#slidecarthq` via `evaluate_script`
-- **Drawer won't open/closes immediately:** JS conflict, NOT CSS — escalate

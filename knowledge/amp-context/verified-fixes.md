@@ -802,3 +802,42 @@ if (BIS.urlIsProductPage() === true) {
 ```
 - **Verified by Jall:** Yes
 
+### [2026-06-19] Slide Cart shifted off-screen and sizing on Impulse theme
+- **Store URL:** https://modaavenueplzen.com/collections/elegantni-saty/products/melis-grace-kleid
+- **Issue:** Slide Cart drawer remained off-screen on mobile due to `transform: matrix` and didn't fill 100% width.
+- **Fix Description:** Forced `transform: none` and `width: 100%` using specific selectors and breakpoints for the Impulse theme.
+- **Script:**
+```css
+@media screen and (max-width: 749px) {
+  #slidecarthq .slidecarthq.open {
+    transform: none !important;
+  }
+}
+@media (max-width: 768px) {
+  #slidecarthq .slidecarthq {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+```
+- **Verified by Jall:** Yes
+
+### [2026-06-22] BIS 'askPermission' TypeError on Webpush
+- **Store URL:** https://lasretro.com/products/camiseta-portugal-visitante-2026
+- **Issue:** Uncaught TypeError: Cannot read properties of null (reading 'askPermission') when submitting the BIS modal with 'webpush' as the default channel. This happens because `selectDefaultChannel()` sets the channel to "webpush" but fails to initialize the `bisWebpush` instance.
+- **Fix Description:** Patch `window.BIS.Form.prototype.handleSubmit` to check if the current channel is 'webpush' and `bisWebpush` is null. If so, call `initWebPush()` before proceeding with the original submission logic.
+- **Script:**
+```javascript
+(function() {
+  if (window.BIS && window.BIS.Form && window.BIS.Form.prototype) {
+    const originalHandleSubmit = window.BIS.Form.prototype.handleSubmit;
+    window.BIS.Form.prototype.handleSubmit = function() {
+      if (this.currentChannel === 'webpush' && !this.bisWebpush && typeof this.initWebPush === 'function') {
+        this.initWebPush();
+      }
+      return originalHandleSubmit.apply(this, arguments);
+    };
+  }
+})();
+```
+- **Verified by Jall:** Yes

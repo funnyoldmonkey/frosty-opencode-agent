@@ -83,7 +83,7 @@ Most models are **free** through [Google AI Studio](https://aistudio.google.com/
 |---|---|
 | **OpenCode Desktop** | Download from [opencode.ai](https://opencode.ai) |
 | **Node.js** (v18+) | [nodejs.org](https://nodejs.org) — needed for Chrome DevTools MCP |
-| **Python 3.10+** | [python.org](https://python.org) — needed for the API key rotator |
+| **Python 3.10+** | [python.org](https://python.org) — needed for the API key rotator and verified-fixes append |
 | **Google AI API Key(s)** | Free from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 | **Git** | [git-scm.com](https://git-scm.com) |
 

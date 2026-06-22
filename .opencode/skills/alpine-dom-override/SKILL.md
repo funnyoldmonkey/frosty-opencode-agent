@@ -11,8 +11,7 @@ Modern Shopify themes using Alpine.js or Vue often use reactive templates that r
 ## Workflow
 
 ### 1. Identification
-- Use `evaluate_script` to check if the element is being modified by a framework.
-- Look for `x-data`, `x-if`, or `x-text` attributes in the DOM.
+- Call `@diagnose` to check if the element is being modified by a framework (check for `x-data`, `x-if`, `x-text` attributes via `evaluate_script`).
 - Observe the button text changing back to default immediately after a script modification.
 
 ### 2. Implementation

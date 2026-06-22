@@ -10,7 +10,7 @@ This skill outlines the process for reducing excessive whitespace and fixing lay
 ## Workflow
 
 ### 1. Identify Whitespace Culprits
-- Use Chrome DevTools to inspect the `.slidecarthq.right` drawer.
+- Call `@diagnose` to inspect the `.slidecarthq.right` drawer.
 - Check computed styles for `.header`, `.rewards`, and `.footer`.
 - Look for large `padding` or `margin` values that create empty gaps.
 
