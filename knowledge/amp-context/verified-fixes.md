@@ -841,3 +841,131 @@ if (BIS.urlIsProductPage() === true) {
 })();
 ```
 - **Verified by Jall:** Yes
+
+### [2026-06-22] Slide Cart GWP Auto-Add Fix
+- **Store URL:** https://neutraliz.com
+- **Issue:** Slide Cart's gift-with-purchase (GWP) isn't auto-adding when a reward tier is reached. Instead, it shows manual "AJOUTER" buttons.
+- **Fix Description:** Injected a script to listen to `SLICECART_UPDATED` and `SLICECART_LOADED`, check reward tiers via `SLIDECART_STATE()`, and automatically add/remove GWP items via Shopify AJAX API.
+- **Script:**
+\`\`\`javascript
+<!-- AMP Fix: Slide Cart auto-add gift-with-purchase when tier reached (and auto-remove below) -->
+<script>
+(function () {
+  if (window.__ampGiftFix) return;
+  window.__ampGiftFix = true;
+
+  var BUSY = false, TIMER = null, GIFT_PROP = '_amp_gift';
+  // Tracks variant IDs we know are/were free gifts, so they can be safely removed if the tier locks.
+  window.__ampGiftManaged = window.__ampGiftManaged || {};
+
+  // Read the free-gift reward tiers straight from Slide Cart's own settings.
+  function getGiftTiers() {
+    try {
+      var s = window.SLIDECART_STATE();
+      if (!s || !s.settings) return null;
+      var useCount = s.settings.rewards_count === true; // false = threshold measured by cart total
+      var gifts = [];
+      (s.settings.rewards_tiers || []).forEach(function (t) {
+        if (t.rewards_type !== 'free_gift' || !t.free_gifts) return;
+        var g; try { g = JSON.parse(t.free_gifts); } catch (e) { return; }
+        (g.items || []).forEach(function (it) {
+          (it.variants || []).forEach(function (v) {
+            var vid = parseInt(String(v.id).split('/').pop(), 10);
+            if (vid) gifts.push({ threshold: parseFloat(t.amount), variantId: vid });
+          });
+        });
+      });
+      return { useCount: useCount, gifts: gifts };
+    } catch (e) { return null; }
+  }
+
+  // cart: the Shopify cart object Slide Cart passes into SLICECART_LOADED / SLICECART_UPDATED.
+  async function reconcile(cart) {
+    if (BUSY) return;
+    var cfg = getGiftTiers();
+    if (!cfg || !cfg.gifts.length) return;
+
+    if (!cart || !cart.items) {
+      try { cart = await fetch('/cart.js', { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); }); }
+      catch (e) { return; }
+    }
+
+    var items = cart.items || [];
+    var giftIds = cfg.gifts.map(function (g) { return g.variantId; });
+
+    // Qualifying amount excludes every gift line, so gifts never count toward the threshold.
+    var qualCents = 0, qualCount = 0;
+    items.forEach(function (it) {
+      if (giftIds.indexOf(it.id) > -1) return;
+      qualCents += it.final_line_price;
+      qualCount += it.quantity;
+    });
+
+    // Remember any gift line that is currently free (tagged by us OR discounted to 0 by the app).
+    items.forEach(function (it) {
+      if (giftIds.indexOf(it.id) === -1) return;
+      if ((it.properties && it.properties[GIFT_PROP]) || it.final_price === 0) {
+        window.__ampGiftManaged[it.id] = true;
+      }
+    });
+
+    var adds = [], removes = [];
+    cfg.gifts.forEach(function (g) {
+      var unlocked = cfg.useCount ? (qualCount >= g.threshold) : (qualCents >= Math.round(g.threshold * 100));
+      var lines = items.filter(function (it) { return it.id === g.variantId; });
+      if (unlocked) {
+        if (lines.length === 0) adds.push(g.variantId);
+        else if (lines.length > 1) for (var k = 1; k < lines.length; k++) removes.push(lines[k].key); // de-dupe
+      } else if (window.__ampGiftManaged[g.variantId]) {
+        // Tier locked: pull the gift so the customer is never charged for it (the discount drops off below threshold).
+        lines.forEach(function (l) { removes.push(l.key); });
+        delete window.__ampGiftManaged[g.variantId];
+      }
+    });
+
+    if (!adds.length && !removes.length) return;
+
+    BUSY = true;
+    try {
+      for (var i = 0; i < removes.length; i++) {
+        await fetch('/cart/change.js', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: removes[i], quantity: 0 })
+        });
+      }
+      for (var j = 0; j < adds.length; j++) {
+        await fetch('/cart/add.js', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: [{ id: adds[j], quantity: 1, properties: { _amp_gift: '1' } }] })
+        });
+        window.__ampGiftManaged[adds[j]] = true;
+      }
+    } catch (e) {
+      console.log('[AMP gift fix]', e);
+    } finally {
+      // Re-render Slide Cart so the gift line shows/clears immediately.
+      await new Promise(function (res) { try { window.SLIDECART_UPDATE(res); } catch (e) { res(); } });
+      BUSY = false;
+    }
+  }
+
+  // Small debounce: a single user action can fire SLICECART_UPDATED more than once.
+  function schedule(cart) { clearTimeout(TIMER); TIMER = setTimeout(function () { reconcile(cart); }, 200); }
+
+  // Event-driven: Slide Cart calls SLICECART_UPDATED on every cart change (add, remove, quantity change),
+  // and SLICECART_LOADED once on first load. We chain any handler already assigned to them so we don't clobber it.
+  var prevLoaded = window.SLICECART_LOADED, prevUpdated = window.SLICECART_UPDATED;
+  window.SLICECART_LOADED = function (cart) {
+    if (typeof prevLoaded === 'function') { try { prevLoaded(cart); } catch (e) {} }
+    schedule(cart);
+  };
+  window.SLICECART_UPDATED = function (cart) {
+    if (typeof prevUpdated === 'function') { try { prevUpdated(cart); } catch (e) {} }
+    schedule(cart);
+  };
+})();
+</script>
+<!-- End of AMP Fix: Slide Cart auto-add gift-with-purchase when tier reached (and auto-remove below) -->
+\`\`\`
+- **Verified by Jall:** Yes
+```
