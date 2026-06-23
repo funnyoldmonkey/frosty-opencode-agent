@@ -969,3 +969,117 @@ if (BIS.urlIsProductPage() === true) {
 \`\`\`
 - **Verified by Jall:** Yes
 ```
+
+### [2026-06-23] Slide Cart: Shipping Protection Price and Translation fix for PLN
+- **Store URL:** https://maja-bizuteria.pl
+- **Issue:** Shipping protection showed the raw Euro price (2,95 zł) instead of the converted Polish Zloty price (~13,00 zł). Also, the "Discounts" footer label was in English.
+- **Fix Description:** Implemented a script that fetches the actual price of the protection variant from the Shopify product JSON and translates the "Discounts" label to "Rabaty". The script hooks into Slide Cart's lifecycle events and uses a MutationObserver for persistence.
+- **Script:**
+\`\`\`liquid
+{%- comment -%}
+  AMP Slide Cart fixes for maja-bizuteria.pl (yqi2tr-vk.myshopify.com)
+  Store base currency: EUR — displayed currency: PLN (Shopify Markets, rate ~4.3)
+
+  Contains two fixes:
+    1. Shipping protection price shows the real charged amount (13,00 zł) instead of
+       the raw EUR setting value (2,95 zł).
+    2. The cart "Discounts" footer label is translated to Polish ("Rabaty").
+
+  NOTE: the <script> is wrapped in {% raw %} so Liquid does not strip the price
+  format tokens, and the money format is read at runtime so it works no matter how
+  early the snippet loads. Render this snippet from theme.liquid.
+{%- endcomment -%}
+
+<!-- AMP Fix: Slide Cart PLN protection price + Polish "Discounts" label -->
+{% raw %}
+<script>
+(function () {
+  if (window.__ampPlnFix) { window.__ampPlnFix.run(); return; }
+
+  // Shipping-protection product on this store (handle + variant id from app settings)
+  var PROTECTION_HANDLE = 'ochrona-przesylki';
+  var PROTECTION_VARIANT_ID = 57758956224860;
+  var DISCOUNTS_LABEL_PL = 'Rabaty';
+
+  // Format cents into the store's money format. Read SLIDECART_FORMAT at call time
+  // (not once at load) so it is always available, and fall back to "<amount> zł".
+  function formatMoney(cents) {
+    var fmt = window.SLIDECART_FORMAT ||
+              (window.Shopify && window.Shopify.money_format) || '';
+    var parts = (cents / 100).toFixed(2).split('.');     // comma decimal, dot thousands
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    var amount = parts.join(',');
+    if (/\{\{[^}]*\}\}/.test(fmt)) return fmt.replace(/\{\{[^}]*\}\}/, amount);
+    return amount + ' zł';
+  }
+
+  // Fetch the protection variant's REAL price in the active (displayed) currency once.
+  var protectionPriceCents = null;
+  function loadProtectionPrice() {
+    if (protectionPriceCents != null) return Promise.resolve(protectionPriceCents);
+    return fetch('/products/' + PROTECTION_HANDLE + '.js', { headers: { Accept: 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (p) {
+        var v = (p.variants || []).filter(function (x) { return x.id === PROTECTION_VARIANT_ID; })[0] || (p.variants || [])[0];
+        protectionPriceCents = v ? v.price : null;
+        return protectionPriceCents;
+      })
+      .catch(function () {
+        // Fallback: convert the configured base amount by the active currency rate.
+        try {
+          var amt = parseFloat(window.SLIDECART_STATE().settings.shipping_protection_amount);
+          var rate = parseFloat((window.Shopify && window.Shopify.currency && window.Shopify.currency.rate) || 1);
+          protectionPriceCents = Math.round(amt * rate) * 100;
+        } catch (e) { protectionPriceCents = null; }
+        return protectionPriceCents;
+      });
+  }
+
+  function applyFixes() {
+    var root = document.querySelector('#slidecarthq');
+    if (!root) return;
+
+    // Fix 1: show the real charged protection price (13,00 zł, not 2,95 zł)
+    try {
+      var priceEl = root.querySelector('.shipping-protection .price');
+      if (priceEl && protectionPriceCents != null) {
+        var correct = formatMoney(protectionPriceCents);
+        if (priceEl.textContent.trim() !== correct) priceEl.textContent = correct;
+      }
+    } catch (e) {}
+
+    // Fix 2: translate the "Discounts" footer label to Polish
+    try {
+      var discRow = root.querySelector('.amp-sc__footer-row--discount');
+      if (discRow && discRow.firstChild && discRow.firstChild.nodeType === 3 &&
+          discRow.firstChild.textContent.trim() === 'Discounts') {
+        discRow.firstChild.textContent = DISCOUNTS_LABEL_PL;
+      }
+    } catch (e) {}
+  }
+
+  var t;
+  function run() { loadProtectionPrice().then(applyFixes); }
+  function scheduled() { clearTimeout(t); t = setTimeout(applyFixes, 50); }
+
+  // Chain Slide Cart's own callbacks so we don't clobber existing handlers.
+  var pl = window.SLIDECART_LOADED, pu = window.SLIDECART_UPDATED, po = window.SLIDECART_OPENED;
+  window.SLIDECART_LOADED  = function (c) { if (typeof pl === 'function') { try { pl(c); } catch (e) {} } run(); };
+  window.SLIDECART_UPDATED = function (c) { if (typeof pu === 'function') { try { pu(c); } catch (e) {} } scheduled(); };
+  window.SLIDECART_OPENED  = function ()  { if (typeof po === 'function') { try { po(); } catch (e) {} } scheduled(); };
+
+  // Safety net: re-apply on any DOM change inside the drawer (debounced, scoped).
+  function attachObserver() {
+    var host = document.querySelector('#slidecarthq');
+    if (!host) { return setTimeout(attachObserver, 500); }
+    new MutationObserver(scheduled).observe(host, { childList: true, subtree: true, characterData: true });
+  }
+  attachObserver();
+
+  window.__ampPlnFix = { run: run, apply: applyFixes };
+  run();
+})();
+</script>
+{% endraw %}
+\`\`\`
+- **Verified by Jall:** Yes
