@@ -1123,3 +1123,151 @@ if (BIS.urlIsProductPage() === true) {
 })();
 \`\`\`
 - **Verified by Jall:** Yes
+
+### [2026-06-24] Force-show BIS button on in-stock PDPs (Custom OOS Logic)
+- **Store URL:** https://dirtylabs.com
+- **Issue:** BIS button not showing on products with custom out-of-stock logic (Shopify reports available: true, but merchant suppresses Add to Cart). _BISConfig.button.visible = true is insufficient.
+- **Fix Description:** Overrode `BIS.popup.variantIsUnavailable` to return true and forced `popup.createUI()` call. Hid the native floating button and injected a custom inline button styled to match the theme's purchase button, triggered via a merchant allow-list of URLs.
+- **Script:**
+```html
+<script>
+(function () {
+  var AMP_BIS_FORCE_SHOW = [
+    "https://dirtylabs.com/products/aestival-bio-enzyme-liquid-dish-soap?variant=43324222505096",
+  ];
+  var INLINE_ID = "amp-bis-inline";
+  function currentHandle() {
+    var m = location.pathname.match(/\/products\/([^\/?#]+)/);
+    return m ? m[1] : null;
+  }
+  function matchEntry() {
+    var h = currentHandle();
+    if (!h) return null;
+    for (var i = 0; i < AMP_BIS_FORCE_SHOW.length; i++) {
+      var e = AMP_BIS_FORCE_SHOW[i];
+      if (typeof e === "string") {
+        if (e === h || e.indexOf("/products/" + h) !== -1) return { handle: h, variants: null };
+      } else if (e && e.handle === h) {
+        return { handle: h, variants: (e.variants || []).map(Number) };
+      }
+    }
+    return null;
+  }
+  var entry = matchEntry();
+  if (!entry) return;
+  function whenReady(cb) {
+    var tries = 0;
+    (function poll() {
+      if (window.BIS && BIS.popup && BIS.popup._variantsById &&
+          Object.keys(BIS.popup._variantsById).length) { cb(); return; }
+      if (tries++ > 200) return;
+      setTimeout(poll, 100);
+    })();
+  }
+  function eligibleVariants(popup) {
+    var all = Object.keys(popup._variantsById).map(function (k) { return popup._variantsById[k]; });
+    if (!entry.variants || !entry.variants.length) return all;
+    return all.filter(function (v) { return entry.variants.indexOf(Number(v.id)) !== -1; });
+  }
+  function currentVariantId(popup) {
+    var input = document.querySelector('form[action*="/cart/add"] [name="id"]');
+    if (input && input.value) return Number(input.value);
+    var u = new URLSearchParams(location.search).get("variant");
+    if (u) return Number(u);
+    var ev = eligibleVariants(popup);
+    return ev.length ? ev[0].id : null;
+  }
+  function hideNativeButton() {
+    if (document.getElementById("amp-bis-hide-native")) return;
+    var st = document.createElement("style");
+    st.id = "amp-bis-hide-native";
+    st.textContent = ".bis-button{display:none !important;}";
+    document.head.appendChild(st);
+  }
+  function isVisible(el) {
+    if (!el) return false;
+    var r = el.getBoundingClientRect();
+    return el.offsetParent !== null && r.width > 1 && r.height > 1;
+  }
+  function widestVisible(sel) {
+    var els = Array.prototype.slice.call(document.querySelectorAll(sel)).filter(isVisible);
+    els.sort(function (a, b) { return b.getBoundingClientRect().width - a.getBoundingClientRect().width; });
+    return els[0] || null;
+  }
+  function getAnchorAndRef() {
+    var soldOut = widestVisible("#sold-out, .sold-out button");
+    if (soldOut && soldOut.getBoundingClientRect().width < 100) soldOut = null;
+    var addBtn = widestVisible('#add, [name="add"]');
+    if (addBtn && addBtn.getBoundingClientRect().width < 100) addBtn = null;
+    var payBtn = widestVisible(".shopify-payment-button");
+    var ref = soldOut || addBtn;
+    if (!ref) return { anchor: null, ref: null };
+    var anchor;
+    if (soldOut) {
+      anchor = soldOut.closest(".sold-out") || soldOut;
+    } else if (payBtn) {
+      anchor = payBtn;
+    } else {
+      anchor = addBtn.closest(".quantity-cart-row, .details-row, .add-to-cart") || addBtn;
+    }
+    return { anchor: anchor, ref: ref };
+  }
+  function makeInlineButton(popup) {
+    var ar = getAnchorAndRef();
+    if (!ar.anchor || !ar.ref) return false;
+    var cs = getComputedStyle(ar.ref);
+    var copy = ["backgroundColor", "color", "borderRadius",
+      "borderTopWidth", "borderTopStyle", "borderTopColor",
+      "borderRightWidth", "borderRightStyle", "borderRightColor",
+      "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
+      "borderLeftWidth", "borderLeftStyle", "borderLeftColor",
+      "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing",
+      "textTransform", "lineHeight", "textAlign", "height", "minHeight",
+      "paddingTop", "paddingBottom", "paddingLeft", "paddingRight"];
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = INLINE_ID;
+    copy.forEach(function (p) { btn.style[p] = cs[p]; });
+    btn.style.setProperty("background-color", "#000000", "important");
+    btn.style.setProperty("color", "#ffffff", "important");
+    btn.style.setProperty("border", "none", "important");
+    btn.style.display = "flex";
+    btn.style.alignItems = "center";
+    btn.style.justifyContent = "center";
+    btn.style.width = "100%";
+    btn.style.boxSizing = "border-box";
+    btn.style.cursor = "pointer";
+    btn.style.marginTop = "10px";
+    btn.textContent = (window.BIS.currentButtonCaption && window.BIS.currentButtonCaption()) || "NOTIFY ME WHEN AVAILABLE";
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var vid = currentVariantId(popup);
+      if (vid) popup.show(vid);
+    });
+    ar.anchor.insertAdjacentElement("afterend", btn);
+    return true;
+  }
+  function build() {
+    var popup = window.BIS.popup;
+    if (!popup || !popup._variantsById) return;
+    popup.variantIsUnavailable = function () { return true; };
+    eligibleVariants(popup).forEach(function (v) {
+      if (!popup.variants.some(function (x) { return x.id === v.id; })) popup.variants.push(v);
+    });
+    if (!popup.variants.length) return;
+    if (!popup.form) { try { popup.createUI(); } catch (e) { /* no-op */ } }
+    hideNativeButton();
+    if (!document.getElementById(INLINE_ID)) makeInlineButton(popup);
+  }
+  whenReady(function () {
+    build();
+    var guard = setInterval(function () {
+      if (!document.getElementById(INLINE_ID)) build();
+    }, 750);
+    setTimeout(function () { clearInterval(guard); }, 30000);
+  });
+})();
+</script>
+- **Verified by Jall:** Yes
+```
