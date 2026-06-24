@@ -1083,3 +1083,43 @@ if (BIS.urlIsProductPage() === true) {
 {% endraw %}
 \`\`\`
 - **Verified by Jall:** Yes
+
+### [2026-06-24] BIS Proxy Subpath Rewrite
+- **Store URL:** https://glamrgear.com
+- **Issue:** BIS signup submission fails with 404 because the client requests `/apps/bis/signups/create.json` but the store's App Proxy is registered at `/apps/backinstock`.
+- **Fix Description:** Monkey-patched `window.BIS.request` and `window.BIS.requestJSONP` to rewrite the `/apps/bis/` subpath to `/apps/backinstock/` dynamically. Included a polling mechanism to ensure the patch is applied after `window.BIS` is initialized.
+- **Script:**
+\`\`\`javascript
+(function () {
+  var WRONG = '/apps/bis/';
+  var RIGHT = '/apps/backinstock/';
+
+  function fixUrl(u) {
+    return (typeof u === 'string' && u.indexOf(WRONG) !== -1) ? u.replace(WRONG, RIGHT) : u;
+  }
+
+  function patch() {
+    if (!window.BIS) return false;
+    ['requestJSONP', 'request'].forEach(function (fn) {
+      if (typeof window.BIS[fn] === 'function' && !window.BIS[fn].__ampProxyPatched) {
+        var orig = window.BIS[fn];
+        window.BIS[fn] = function () {
+          var args = Array.prototype.slice.call(arguments);
+          if (args.length && typeof args[0] === 'string') args[0] = fixUrl(args[0]);
+          return orig.apply(this, args);
+        };
+        window.BIS[fn].__ampProxyPatched = true;
+      }
+    });
+    return !!(window.BIS.requestJSONP && window.BIS.requestJSONP.__ampProxyPatched);
+  }
+
+  if (!patch()) {
+    var tries = 0;
+    var iv = setInterval(function () {
+      if (patch() || ++tries > 100) clearInterval(iv);
+    }, 200);
+  }
+})();
+\`\`\`
+- **Verified by Jall:** Yes
