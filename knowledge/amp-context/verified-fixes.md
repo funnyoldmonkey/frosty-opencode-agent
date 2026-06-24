@@ -1271,3 +1271,185 @@ if (BIS.urlIsProductPage() === true) {
 </script>
 - **Verified by Jall:** Yes
 ```
+
+### [2026-06-24] Slide Cart Market-Based GWP (dynamic per-market load)
+- **Store URL:** beauty-of-joseon-global.myshopify.com
+- **Issue:** GWP program needed to differ per Shopify Market (UK, US, EU, ROW) with correct currency conversion, and avoid Liquid stripping of tokens like `{{ amount }}` and `{{ reward }}`.
+- **Fix Description:** Implemented a self-contained liquid snippet (`snippets/amp-slidecart.liquid`) that detects market via `window.Shopify.country`, lazy-loads the corresponding gift products, converts thresholds using `Shopify.currency.rate`, and injects them into `window.SLIDECART_STATE().settings.rewards_tiers`. Wrapped in `{% raw %}` to prevent Liquid processing of JS tokens.
+- **Script:**
+\`\`\`liquid
+<!-- AMP Fix: Slide Cart market-based GWP (dynamic per-market load) — Beauty of Joseon Global -->
+{% raw %}
+<script>
+(function () {
+  if (window.__ampMarketGwp) return;          // run once
+  window.__ampMarketGwp = true;
+
+  /* ---- 1. Per-market gifts (EDIT HERE) ----------------------
+     handle = gift product URL handle
+     base   = unlock threshold in USD (auto-converted to local currency) */
+  var MARKET_GIFTS = {
+    uk: [
+      { handle: 'relief-sun-mini-10ml-copy',                  base: 1   }, // 82BU002
+      { handle: 'uk-test-calming-serum-green-tea-panthenol',  base: 65  }, // 82BS008
+      { handle: 'glow-deep-serum-rice-alpha-arbutin-copy-2',  base: 105 }  // 82BS032
+    ],
+    us:  [ { handle: 'day-dew-sunscreen-10ml-copy-1',         base: 1   } ], // 01BU015
+    eu:  [ { handle: 'light-on-serum-mini-10ml-copy',         base: 1   } ], // 82BS019
+    row: [ { handle: 'revive-eye-serum-mini-10ml-copy',       base: 1   } ]  // 82BS020
+  };
+  var EU_COUNTRIES = ['FR', 'DE', 'NL', 'BE', 'ES', 'IT', 'IE'];
+
+  // Fallback unlock text, used only if no dashboard free-gift tier is found.
+  var DEFAULT_TEXT = {
+    label: 'FREE item',
+    pre_unlock_text: 'Spend {{ amount }} more and get *{{ reward }}*',
+    post_unlock_text: '{{ reward }} applied!'
+  };
+
+  /* ---- internals ------------------------------------------- */
+  var builtCache = {};        // market -> built tier array (fetched once)
+  var nonGiftTiers = null;    // any non-free-gift reward tiers, preserved
+  var textTemplate = null;    // label + unlock text reused from dashboard
+  var busy = false;           // re-entrancy guard for our own re-render
+
+  function getMarket() {
+    var c = '';
+    try { c = (window.Shopify && window.Shopify.country) ? String(window.Shopify.country).toUpperCase() : ''; } catch (e) {}
+    if (c === 'GB') return 'uk';
+    if (c === 'US') return 'us';
+    if (EU_COUNTRIES.indexOf(c) !== -1) return 'eu';
+    return 'row';
+  }
+
+  function currencyRate() {
+    try {
+      var r = parseFloat(window.Shopify && window.Shopify.currency && window.Shopify.currency.rate);
+      return (r && r > 0) ? r : 1;
+    } catch (e) { return 1; }
+  }
+
+  // Capture the label + unlock text from the merchant's existing free-gift
+  // tier (prefer the pristine settingsBackup, which keeps the tokens intact),
+  // so our injected tiers read exactly like the dashboard config.
+  function captureTemplate(st) {
+    if (textTemplate) return;
+    var sources = [];
+    if (st.settingsBackup && Array.isArray(st.settingsBackup.rewards_tiers)) sources = sources.concat(st.settingsBackup.rewards_tiers);
+    if (Array.isArray(st.settings.rewards_tiers)) sources = sources.concat(st.settings.rewards_tiers);
+    var gt = sources.filter(function (t) { return t && t.rewards_type === 'free_gift' && /\{\{/.test(t.pre_unlock_text || ''); })[0]
+          || sources.filter(function (t) { return t && t.rewards_type === 'free_gift'; })[0];
+    textTemplate = gt
+      ? { label: gt.label, pre_unlock_text: gt.pre_unlock_text, post_unlock_text: gt.post_unlock_text }
+      : DEFAULT_TEXT;
+  }
+
+  // Build a free-gift reward tier from a /products/<handle>.js payload.
+  function buildTier(product, cfg, rate) {
+    var v = product.variants && product.variants[0];
+    if (!v) return null;
+    var img = (product.featured_image || '').replace(/^\/\//, 'https://');
+    var vImg = (v.featured_image && v.featured_image.src) ? v.featured_image.src : '';
+    var localAmount = (parseFloat(cfg.base) * rate).toFixed(2);   // convert USD -> active currency
+    var freeGifts = {
+      discount_percentage: 100,
+      items: [{
+        id: 'gid://shopify/Product/' + product.id,
+        handle: product.handle,
+        image: img,
+        title: product.title,
+        variants: [{
+          id: 'gid://shopify/ProductVariant/' + v.id,
+          image: vImg, position: 1, sku: v.sku, title: v.title
+        }]
+      }]
+    };
+    return {
+      tier: 1,
+      amount: String(localAmount),
+      free_gifts: JSON.stringify(freeGifts),
+      label: textTemplate.label,
+      pre_unlock_text: textTemplate.pre_unlock_text,
+      post_unlock_text: textTemplate.post_unlock_text,
+      rewards_type: 'free_gift',
+      shipping_text: ''
+    };
+  }
+
+  // Lazy-fetch + build the active market's gift tiers (cached per market).
+  function loadMarketTiers(market, rate) {
+    if (builtCache[market]) return Promise.resolve(builtCache[market]);
+    var gifts = MARKET_GIFTS[market] || [];
+    return Promise.all(gifts.map(function (g) {
+      return fetch('/products/' + g.handle + '.js', { headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (p) { return p ? buildTier(p, g, rate) : null; })
+        .catch(function () { return null; });
+    })).then(function (tiers) {
+      tiers = tiers.filter(Boolean);
+      builtCache[market] = tiers;
+      return tiers;
+    });
+  }
+
+  function tierSkus(t) {
+    try {
+      return JSON.parse(t.free_gifts).items.reduce(function (a, it) {
+        return a.concat((it.variants || []).map(function (v) { return v.sku; }));
+      }, []);
+    } catch (e) { return []; }
+  }
+  function signature(arr) {
+    return arr.map(function (t) {
+      return (t.rewards_type === 'free_gift' ? tierSkus(t).join('+') + '@' + t.amount : (t.rewards_type + ':' + t.amount));
+    }).join('|');
+  }
+  function clone(t) { var c = {}; for (var k in t) { if (Object.prototype.hasOwnProperty.call(t, k)) c[k] = t[k]; } return c; }
+
+  function apply(giftTiers) {
+    var st;
+    try { st = window.SLIDECART_STATE(); } catch (e) { return; }
+    if (!st || !st.settings || !Array.isArray(st.settings.rewards_tiers)) return;
+
+    // Capture any NON free-gift reward tiers once, so we preserve them.
+    if (nonGiftTiers === null) {
+      nonGiftTiers = st.settings.rewards_tiers.filter(function (t) { return t.rewards_type !== 'free_gift'; });
+    }
+
+    var desired = nonGiftTiers.concat(giftTiers)
+      .sort(function (a, b) { return parseFloat(a.amount) - parseFloat(b.amount); })
+      .map(function (t, i) { var c = clone(t); c.tier = i + 1; return c; });
+
+    if (signature(st.settings.rewards_tiers) === signature(desired)) return;   // idempotent
+    st.settings.rewards_tiers = desired;
+    busy = true;
+    try { window.SLIDECART_UPDATE(function () { busy = false; }); } catch (e) { busy = false; }
+  }
+
+  function gate() {
+    if (busy) return;
+    var st;
+    try { st = window.SLIDECART_STATE(); } catch (e) { return; }
+    if (!st || !st.settings) return;
+    captureTemplate(st);
+    loadMarketTiers(getMarket(), currencyRate()).then(apply);
+  }
+
+  /* ---- 2. Hook Slide Cart lifecycle (chain existing) -------- */
+  var pLoaded = window.SLIDECART_LOADED, pUpdated = window.SLIDECART_UPDATED, pOpened = window.SLIDECART_OPENED;
+  window.SLIDECART_LOADED  = function (c) { if (typeof pLoaded  === 'function') { try { pLoaded(c); }  catch (e) {} } gate(); };
+  window.SLIDECART_UPDATED = function (c) { if (typeof pUpdated === 'function') { try { pUpdated(c); }  catch (e) {} } gate(); };
+  window.SLIDECART_OPENED  = function ()  { if (typeof pOpened  === 'function') { try { pOpened(); }   catch (e) {} } gate(); };
+
+  /* ---- 3. Self-init if Slide Cart already loaded ------------ */
+  (function poll(n) {
+    if (typeof window.SLIDECART_STATE === 'function') { gate(); return; }
+    if (n > 100) return;
+    setTimeout(function () { poll(n + 1); }, 150);
+  })(0);
+})();
+</script>
+{% endraw %}
+<!-- End of AMP Fix: Slide Cart market-based GWP (dynamic per-market load) — Beauty of Joseon Global -->
+\`\`\`
+- **Verified by Jall:** Yes
