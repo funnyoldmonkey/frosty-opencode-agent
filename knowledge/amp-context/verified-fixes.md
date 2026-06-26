@@ -1768,3 +1768,84 @@ if (BIS.urlIsProductPage() === true) {
 <!-- End of AMP Fix: Slide Cart market-based GWP (dynamic per-market load + auto-add) — Beauty of Joseon Global -->
 \`\`\`
 - **Verified by Jall:** Yes
+
+### [2026-06-26] Slide Cart Drawer Not Rendering (Overlay Only)
+- **Store URL:** staging-workoutmeals.myshopify.com
+- **Issue:** The page goes dark (theme overlay appears) when clicking the cart icon, but the Slide Cart drawer does not render. This was caused by `SLIDECART_STATE().settings.enabled` being `null` and the theme's native drawer state blocking interaction.
+- **Fix Description:** Forced `SLIDECART_STATE().settings.enabled` to `true` using a polling mechanism and intercepted theme cart triggers to clear theme overlay classes and trigger `window.SLIDECART_OPEN()`.
+- **Script:**
+\`\`\`javascript
+(function () {
+  if (window.__ampSlideCartFix) return;
+  window.__ampSlideCartFix = true;
+
+  var slidecartReady = false;
+  var pendingOpen = false;
+
+  // Theme triggers that should open Slide Cart instead of the theme's own (empty) cart drawer.
+  var CART_TRIGGER_SELECTOR =
+    '.js-drawer-open-button-right, #cart-icon-bubble, .header-cart, .btn-to-drawer';
+
+  // This store ships with Slide Cart's internal setting "enabled" === null, which makes the
+  // drawer render nothing (the React app mounts but returns null). Force it true so it renders.
+  function ensureEnabled() {
+    try {
+      var s = window.SLIDECART_STATE && window.SLIDECART_STATE();
+      if (s && s.settings) {
+        if (s.settings.enabled !== true) s.settings.enabled = true;
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  function openSlideCart() {
+    // Clear any theme cart-drawer state (the page "fade") if the theme toggled it first.
+    document.body.classList.remove('js-drawer-open', 'active-pop-up');
+    ensureEnabled();
+    if (slidecartReady && typeof window.SLIDECART_OPEN === 'function') {
+      window.SLIDECART_OPEN();
+    } else {
+      pendingOpen = true; // queued: fires the moment Slide Cart finishes loading
+    }
+  }
+
+  // Capture phase so we run BEFORE the theme's native cart-drawer handlers and link navigation.
+  document.addEventListener('click', function (e) {
+    var trigger = e.target.closest && e.target.closest(CART_TRIGGER_SELECTOR);
+    if (!trigger) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    openSlideCart();
+  }, true);
+
+  // Chain SLIDECART_LOADED (don't overwrite) — enable + flush any queued open once ready.
+  var prevLoaded = window.SLIDECART_LOADED;
+  window.SLIDECART_LOADED = function (cart) {
+    slidecartReady = true;
+    ensureEnabled();
+    if (typeof prevLoaded === 'function') { try { prevLoaded(cart); } catch (err) {} }
+    if (pendingOpen && typeof window.SLIDECART_OPEN === 'function') {
+      pendingOpen = false;
+      window.SLIDECART_OPEN();
+    }
+  };
+
+  // Re-assert "enabled" on every open in case the app resets it.
+  var prevOpened = window.SLIDECART_OPENED;
+  window.SLIDECART_OPENED = function () {
+    ensureEnabled();
+    if (typeof prevOpened === 'function') { try { prevOpened(); } catch (e) {} }
+  };
+
+  // Safety net: if the snippet runs before Slide Cart loads, poll briefly to set the flag early.
+  var tries = 0;
+  var poll = setInterval(function () {
+    tries++;
+    if (typeof window.SLIDECART_OPEN === 'function') slidecartReady = true;
+    var ok = ensureEnabled();
+    if ((ok && slidecartReady) || tries > 60) clearInterval(poll); // ~6s max
+  }, 100);
+})();
+\`\`\`
+- **Verified by Jall:** Yes
