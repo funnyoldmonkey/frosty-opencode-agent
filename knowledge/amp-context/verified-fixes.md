@@ -1849,3 +1849,66 @@ if (BIS.urlIsProductPage() === true) {
 })();
 \`\`\`
 - **Verified by Jall:** Yes
+
+### [2026-06-26] Restore Original Compare-at Price for Subscriptions in Slide Cart
+- **Store URL:** osenra.com
+- **Issue:** When Kaching "Automatic Refills" (or similar subscription plans) are applied, Shopify's Cart API sets `selling_plan_allocation.compare_at_price` to the one-time price instead of the variant's actual compare-at price. This causes Slide Cart to show a reduced savings amount.
+- **Fix Description:** Intercept `SLIDECART_UPDATED`, fetch product JSON to calculate the `compare_at_price / price` ratio for the variant, and apply this ratio to the presentment `compare_at_price` in the cart. This ensures the correct strikethrough price is displayed across all currencies/markets.
+- **Script:**
+\`\`\`javascript
+(function () {
+  var ratioCache = {}; 
+  var inFlight = {};   
+  var TOL = 2;         
+  window.__ampCompareGuardBusy = false;
+
+  function loadProduct(handle) {
+    if (inFlight[handle]) return inFlight[handle];
+    inFlight[handle] = fetch('/products/' + handle + '.js')
+      .then(function (r) { return r.json(); })
+      .then(function (p) {
+        (p.variants || []).forEach(function (v) {
+          ratioCache[v.id] = (v.compare_at_price && v.price)
+            ? (v.compare_at_price / v.price)
+            : null;
+        });
+        return p;
+      })
+      .catch(function () { return null; });
+    return inFlight[handle];
+  }
+
+  window.SLIDECART_UPDATED = function (cart) {
+    if (window.__ampCompareGuardBusy) return;
+    if (!cart || !cart.items) return;
+
+    var pending = [];
+    cart.items.forEach(function (it) {
+      if (!it.selling_plan_allocation) return;
+      if (!ratioCache.hasOwnProperty(it.variant_id)) pending.push(loadProduct(it.handle));
+    });
+
+    Promise.all(pending).then(function () {
+      var changed = false;
+      cart.items.forEach(function (it) {
+        var spa = it.selling_plan_allocation;
+        if (!spa) return;
+        var ratio = ratioCache[it.variant_id];
+        if (!ratio) return;
+        var target = Math.round(spa.compare_at_price * ratio);
+        if (target && Math.abs((spa.compare_at_price || 0) - target) > TOL) {
+          spa.compare_at_price = target;
+          it.compare_at_price = target;
+          changed = true;
+        }
+      });
+      if (changed) {
+        window.__ampCompareGuardBusy = true;
+        window.SLIDECART_SET_CART(cart);
+        setTimeout(function () { window.__ampCompareGuardBusy = false; }, 50);
+      }
+    });
+  };
+})();
+\`\`\`
+- **Verified by Jall:** Yes
