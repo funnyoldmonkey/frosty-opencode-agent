@@ -1912,3 +1912,57 @@ if (BIS.urlIsProductPage() === true) {
 })();
 \`\`\`
 - **Verified by Jall:** Yes
+
+### [2026-06-29] Per-currency free shipping threshold (Slide Cart)
+- **Store URL:** https://featherandbone-com-hk.myshopify.com/
+- **Issue:** Slide Cart free shipping threshold was not respecting different currency requirements (e.g., $150 USD and $200 AUD).
+- **Fix Description:** Implemented a runtime JavaScript override that listens to `slidecart:open`, `SLIDECART_UPDATED`, and `shopify:currency:change` events to dynamically adjust the first reward tier's amount using `window.SLIDECART_STATE()`. It also updates `settingsBackup` to ensure consistency.
+- **Script:**
+```javascript
+(function () {
+  var THRESHOLDS = { USD: "150.00", AUD: "200.00" }; // add more currencies here if needed
+  var applying = false;
+
+  function currentCurrency() {
+    try {
+      var st = window.SLIDECART_STATE();
+      if (st && st.currency) return st.currency;
+    } catch (e) {}
+    return (window.Shopify && window.Shopify.currency && window.Shopify.currency.active) || 'AUD';
+  }
+
+  function applyThreshold() {
+    if (applying) return;
+    if (typeof window.SLIDECART_STATE !== 'function') return;
+    var state = window.SLIDECART_STATE();
+    if (!state || !state.settings || !state.settings.rewards_tiers || !state.settings.rewards_tiers.length) return;
+
+    var target = THRESHOLDS[currentCurrency()];
+    if (!target) return; // leave other currencies on their default behaviour
+
+    var tier = state.settings.rewards_tiers[0];
+    if (tier.amount === target) return; // already correct -> avoids update loop
+
+    applying = true;
+    try {
+      state.settings.rewards_tiers[0].amount = target;
+      if (state.settingsBackup && state.settingsBackup.rewards_tiers && state.settingsBackup.rewards_tiers[0]) {
+        state.settingsBackup.rewards_tiers[0].amount = target;
+      }
+      if (typeof window.SLIDECART_UPDATE === 'function') {
+        Promise.resolve(window.SLIDECART_UPDATE()).finally(function () { applying = false; });
+      } else {
+        applying = false;
+      }
+    } catch (e) { applying = false; }
+  }
+
+  document.addEventListener('slidecart:open', applyThreshold);
+  document.addEventListener('SLIDECART_UPDATED', applyThreshold);
+  document.addEventListener('shopify:currency:change', applyThreshold);
+  window.addEventListener('pageshow', applyThreshold);
+  setTimeout(applyThreshold, 800);
+  setTimeout(applyThreshold, 2000);
+})();
+```
+- **Verified by Jall:** Yes
