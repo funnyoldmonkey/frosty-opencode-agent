@@ -1966,3 +1966,109 @@ if (BIS.urlIsProductPage() === true) {
 })();
 ```
 - **Verified by Jall:** Yes
+
+### [2026-06-30] Slide Cart & Zapiet Integration (Widget Relocation)
+- **Store URL:** featherandbone-com-hk.myshopify.com
+- **Issue:** Slide Cart bypasses the Zapiet delivery date/time selection on the `/cart` page. Additionally, the Zapiet widget does not automatically appear in the Slide Cart drawer, and theme mini-carts may conflict.
+- **Fix Description:** Suppress the native theme mini-cart and relocate the populated Zapiet `#storePickupApp` widget into the Slide Cart checkout form. This allows users to select delivery options directly within the drawer. Includes brand alignment for fonts and colors.
+- **Script:**
+```css
+/* Amp CS fix — 2026-06-30 — Zapiet Integration */
+#mini-cart { display: none !important; }
+
+/* Font alignment */
+#slidecarthq, #slidecarthq * { font-family: 'Cormorant', serif !important; font-weight: 500; }
+#slidecarthq h1, #slidecarthq h2, #slidecarthq h3, #slidecarthq h4, #slidecarthq .slidecart-header {
+  font-family: trade-gothic-next-condensed, sans-serif !important; font-weight: 800;
+}
+#slidecarthq .slidecart-footer, #slidecarthq button {
+  font-family: 'Montserrat', sans-serif !important; font-weight: 600;
+}
+
+/* Brand-match the Slide Cart checkout button */
+#slidecarthq form#slidecart-checkout-form button.button.full,
+#slidecarthq button[name="checkout"] {
+  background-color: #105624 !important;
+  color: #EDE7DC !important;
+  border-radius: 0 !important;
+  font-family: 'Montserrat', sans-serif !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.56px !important;
+  border: none !important;
+}
+#slidecarthq form#slidecart-checkout-form button.button.full:hover,
+#slidecarthq button[name="checkout"]:hover { background-color: #0d4a1f !important; color: #FFFFFF !important; }
+
+/* Zapiet widget spacing inside the drawer */
+#slidecart-checkout-form #storePickupApp { width: 100%; margin: 0 0 12px 0; }
+```
+
+```javascript
+(function() {
+  function suppressMiniCart() {
+    var miniCart = document.getElementById('mini-cart');
+    if (!miniCart) return;
+    miniCart.style.setProperty('display','none','important');
+    miniCart.style.setProperty('visibility','hidden','important');
+    miniCart.style.setProperty('opacity','0','important');
+    miniCart.style.setProperty('pointer-events','none','important');
+    new MutationObserver(function(){
+      miniCart.style.setProperty('display','none','important');
+      miniCart.style.setProperty('visibility','hidden','important');
+      miniCart.style.setProperty('opacity','0','important');
+      miniCart.style.setProperty('pointer-events','none','important');
+    }).observe(miniCart, { attributes: true, attributeFilter: ['class','style'] });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', suppressMiniCart);
+  } else { suppressMiniCart(); }
+
+  function placeZapietInDrawer() {
+    var form = document.querySelector('#slidecart-checkout-form');
+    if (!form) return;
+    var btn = form.querySelector('button');
+    if (!btn) return;
+
+    form.querySelectorAll('#storePickupApp').forEach(function (d) {
+      if (d.children.length === 0) d.remove();
+    });
+
+    var inDrawer = form.querySelector('#storePickupApp');
+    if (inDrawer && inDrawer.children.length > 0) return;
+
+    var widget = null;
+    document.querySelectorAll('#storePickupApp').forEach(function (a) {
+      if (a.children.length > 0 && !a.closest('#slidecart-checkout-form')) widget = a;
+    });
+
+    if (widget) {
+      btn.parentNode.insertBefore(widget, btn);
+    } else {
+      if (!document.querySelector('#storePickupApp')) {
+        btn.insertAdjacentHTML('beforebegin', '<div id="storePickupApp"></div>');
+      }
+      document.dispatchEvent(new CustomEvent('zapiet:start'));
+      setTimeout(placeZapietInDrawer, 800);
+    }
+  }
+
+  function run() { setTimeout(placeZapietInDrawer, 1000); }
+
+  var prevUpdated = window.SLIDECART_UPDATED;
+  window.SLIDECART_UPDATED = function(cart) {
+    if (typeof prevUpdated === 'function') { try { prevUpdated(cart); } catch(e) {} }
+    run();
+  };
+  var prevOpened = window.SLIDECART_OPENED;
+  window.SLIDECART_OPENED = function() {
+    if (typeof prevOpened === 'function') { try { prevOpened(); } catch(e) {} }
+    run();
+  };
+  var prevLoaded = window.SLIDECART_LOADED = function(cart) {
+    if (typeof prevLoaded === 'function') { try { prevLoaded(cart); } catch(e) {} }
+    run();
+  };
+})();
+```
+- **Verified by Jall:** Yes
