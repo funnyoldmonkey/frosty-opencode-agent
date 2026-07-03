@@ -2072,3 +2072,51 @@ if (BIS.urlIsProductPage() === true) {
 })();
 ```
 - **Verified by Jall:** Yes
+
+### [2026-07-01] Slide Cart Custom Trust Icons Injection
+- **Store URL:** https://monvaline.com/en-gb/products/monvaline-women-s-asymmetric-maxi-dress-slim-fit-evening-gown?variant=63988531954013
+- **Issue:** Requested "Free shipping", "30 day return", and "Safe payments" icons and texts in the Slide Cart, replicated from houseofnovalondon.com.
+- **Fix Description:** Injected custom HTML with SVGs above the `.trust-badge-icons` element in the Slide Cart footer. Used `SLIDECART_LOADED`, `SLIDECART_UPDATED` hooks and a `MutationObserver` on `#slidecarthq` to ensure persistence during cart re-renders.
+- **Script:**
+\`\`\`javascript
+(function() {
+  const htmlContent = '<div id="amp-sc-custom-icons-container" style="display: flex; justify-content: center; align-items: center; margin-top: 10px; gap: 24px"><div style="display: flex; justify-content: center; align-items: center; gap: 5px"><div style="height: 21px; width: 21px"><svg height="100%" viewBox="0 0 512 512" width="100%" xmlns="http://www.w3.org/2000/svg" data-name="Layer 1"><path d="m72.078 341.333h-50.744a32 32 0 0 0 32 32h5.6a58.374 58.374 0 0 1 13.144-32z"></path><path d="m320 341.333h-157.411a58.374 58.374 0 0 1 13.142 32h144.269a10.667 10.667 0 0 0 10.667-10.667v-10.666a10.667 10.667 0 0 0 -10.667-10.667z"></path><circle cx="117.334" cy="378.667" r="37.333"></circle><path d="m507.219 275.173-40.985-90.163a42.749 42.749 0 0 0 -38.834-25.01h-64.733a10.667 10.667 0 0 0 -10.667 10.667v167.817a58.588 58.588 0 0 1 101.064 34.849h26.936a32 32 0 0 0 32-32v-44.091a53.32 53.32 0 0 0 -4.781-22.069zm-48.633-8.507h-69.253a10.667 10.667 0 0 1 -10.666-10.666v-42.667a10.667 10.667 0 0 1 10.667-10.667h42.991a21.333 21.333 0 0 1 19.421 12.5l16.554 36.42a10.667 10.667 0 0 1 -9.714 15.081z"></path><circle cx="394.667" cy="378.667" r="37.333"></circle><path d="m298.667 96h-245.334a32 32 0 0 0 -32 32v128h-10.1c-5.308 0-10.233 3.63-11.087 8.875a10.675 10.675 0 0 0 10.521 12.459h26.1c5.314 0 10.238 3.63 11.092 8.875a10.675 10.675 0 0 1 -10.521 12.459h-26.1c-5.313-.001-10.238 3.632-11.092 8.873a10.675 10.675 0 0 0 10.521 12.459h309.333a10.667 10.667 0 0 0 10.667-10.667v-181.333a32 32 0 0 0 -32-32z"></path></svg></div><span style="font-weight: 700; font-size: 12px">Free Shipping</span></div><div style="display: flex; justify-content: center; align-items: center; gap: 5px"><div style="height: 21px; width: 21px"><svg height="100%" viewBox="0 0 512 512" width="100%" xmlns="http://www.w3.org/2000/svg" data-name="Layer 1"><path d="m256 138.667a117.333 117.333 0 1 0 117.333 117.333 117.333 117.333 0 0 0 -117.333-117.333zm18.75 167.508a42.719 42.719 0 0 1 -8.083 3.044v10.781a10.667 10.667 0 1 1 -21.333 0v-10.25a57.623 57.623 0 0 1 -22.318-10.2 10.666 10.666 0 1 1 12.635-17.187c14.719 10.82 26.271 6.385 29.469 4.771 4.516-2.286 6.88-5.727 6.88-7.943 0-5.062-4.672-7.7-15.141-11.7-1.885-.721-3.641-1.4-5.167-2.068-1.047-.464-2.307-.935-3.687-1.461-9.526-3.615-29.339-11.141-29.339-31.828 0-10.841 7.12-21.18 18.583-26.979a42.669 42.669 0 0 1 8.083-3v-10.155a10.667 10.667 0 1 1 21.333 0v9.657a57.442 57.442 0 0 1 22.318 10.121 10.666 10.666 0 1 1 -12.635 17.187c-14.719-10.82-26.271-6.385-29.469-4.771-4.516 2.286-6.88 5.727-6.88 7.943 0 5.018 5.474 8.049 15.578 11.885 1.776.674 3.385 1.292 4.729 1.885 1.224.539 2.646 1.076 4.161 1.656 10.089 3.854 28.865 11.029 28.865 31.63.001 10.841 7.118 21.18 18.583 26.979z"></path><path d="m457.052 230.633a202.662 202.662 0 0 0 -197.686-177.273l13.9-13.787a10.666 10.666 0 1 0 -15.021-15.146l-33.787 33.513a10.663 10.663 0 0 0 -.062 15.083l33.786 34.065a10.666 10.666 0 1 0 15.146-15.021l-17.228-17.367a181.339 181.339 0 0 1 113.2 322.91 10.665 10.665 0 1 0 13.344 16.641c55.481-44.496 83.299-113.136 74.408-183.618z"></path><path d="m253.818 404.911a10.666 10.666 0 1 0 -15.146 15.021l17.228 17.368a181.335 181.335 0 0 1 -113.233-322.87 10.668 10.668 0 0 0 -13.354-16.641c-55.454 44.495-83.256 113.122-74.365 183.578a202.651 202.651 0 0 0 197.69 177.268l-13.9 13.792a10.666 10.666 0 1 0 15.021 15.146l33.786-33.513a10.663 10.663 0 0 0 .063-15.083z"></path></svg></div><span style="font-weight: 700; font-size: 12px">30 Day Returns</span></div><div style="display: flex; justify-content: center; align-items: center; gap: 5px"><div style="height: 21px; width: 21px"><svg height="100%" viewBox="0 0 512 512" width="100%" xmlns="http://www.w3.org/2000/svg" data-name="Layer 1"><path d="m10.667 213.333v160a53.394 53.394 0 0 0 53.333 53.334h384a53.394 53.394 0 0 0 53.333-53.333v-160zm138.667 64h-74.667a10.667 10.667 0 0 1 0-21.333h74.667a10.667 10.667 0 0 1 0 21.333zm298.667 80a16 16 0 0 1 -16 16h-64.001a16 16 0 0 1 -16-16v-32a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16z"></path><path d="m501.333 165.333v-26.666a53.394 53.394 0 0 0 -53.333-53.334h-384a53.394 53.394 0 0 0 -53.333 53.333v26.667z"></path></svg></div><span style="font-weight: 700; font-size: 12px">Safe Payments</span></div></div>';
+
+  function inject() {
+    const cart = document.querySelector("#slidecarthq");
+    if (!cart) return;
+    const trustBadge = cart.querySelector(".trust-badge-icons");
+    if (!trustBadge) return;
+    if (cart.querySelector("#amp-sc-custom-icons-container")) return;
+
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = htmlContent;
+    const elementToInject = wrapper.firstElementChild;
+    trustBadge.parentNode.insertBefore(elementToInject, trustBadge);
+  }
+
+  inject();
+
+  const originalUpdated = window.SLIDECART_UPDATED;
+  window.SLIDECART_UPDATED = function(cart) {
+    if (typeof originalUpdated === "function") originalUpdated(cart);
+    inject();
+  };
+
+  const originalLoaded = window.SLIDECART_LOADED;
+  window.SLIDECART_LOADED = function(cart) {
+    if (typeof originalLoaded === "function") originalLoaded(cart);
+    inject();
+  };
+
+  const observer = new MutationObserver(() => {
+    inject();
+  });
+
+  const cartObserverTarget = document.querySelector("#slidecarthq");
+  if (cartObserverTarget) {
+    observer.observe(cartObserverTarget, { childList: true, subtree: true });
+  }
+})();
+\`\`\`
+- **Verified by Jall:** Yes
