@@ -2120,3 +2120,164 @@ if (BIS.urlIsProductPage() === true) {
 })();
 \`\`\`
 - **Verified by Jall:** Yes
+
+### [2026-07-08] Preorder Button Persistence
+- **Store URL:** irontanksgymgear.com
+- **Issue:** Preorder button disappears when switching variants.
+- **Fix Description:** Implemented a robust DOM mutation observer and variant-change listener to re-apply preorder button text and selling plans.
+- **Script:**
+```html
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const SELECTORS = {
+    addToCart: ['[data-amp-add-to-cart]', 'form[action*="/cart/add"] [type="submit"]', 'button[name="add"]', '.product-form__cart-submit', '.add-to-cart'],
+    variant: ['select[name="id"]', 'input[name="id"]:checked', 'input[name="id"][type="hidden"]'],
+    buyNowBtn: ['.shopify-payment-button', '.shopify-payment-button__button', 'button[name="checkout"]', '.dynamic-checkout__button'],
+    subscriptionsContainer: ['product-subscriptions', 'product-subscriptions__button']
+  };
+
+  const findElement = (sel) => sel.reduce((f, s) => f || document.querySelector(s), null);
+
+  const getVariantId = () => {
+    const v = findElement(SELECTORS.variant);
+    const form = document.querySelector('form[action*="/cart/add"]');
+    return (v && v.value) || (form && form.dataset && form.dataset.variantId);
+  };
+
+  // IMPORTANT: this theme has more than one /cart/add form. Always target the one
+  // that actually contains the visible add-to-cart button.
+  const getCartForm = () => {
+    const btn = findElement(SELECTORS.addToCart);
+    return (btn && btn.closest('form[action*="/cart/add"]')) || document.querySelector('form[action*="/cart/add"]');
+  };
+
+  function setSellingPlan(variant) {
+    const form = getCartForm();
+    if (!form) return;
+    const planId = variant && variant.selling_plan_ids && variant.selling_plan_ids[0]; // from config, not hardcoded
+    let input = form.querySelector('input[name="selling_plan"][data-preorder-plan]');
+    if (planId) {
+      if (!input) {
+        input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'selling_plan';
+        input.setAttribute('data-preorder-plan', 'true');
+        form.appendChild(input);
+      }
+      if (input.value !== String(planId)) input.value = String(planId);
+    } else if (input) {
+      input.remove();
+    }
+  }
+
+  function clearSellingPlan() {
+    const form = getCartForm();
+    const input = form && form.querySelector('input[name="selling_plan"][data-preorder-plan]');
+    if (input) input.remove();
+  }
+
+  function apply(variantId) {
+    if (typeof AppPreOrdersConfig === 'undefined' || typeof LiquidPreOrdersConfig === 'undefined') return;
+    if (!AppPreOrdersConfig.purchases_enabled) return;
+    if (AppPreOrdersConfig.visibility === 'tagged' &&
+        !(LiquidPreOrdersConfig.product_tags || []).map(t => t.toLowerCase()).includes('preorder-enabled')) return;
+
+    const addToCartBtn = findElement(SELECTORS.addToCart);
+    const buyNowBtn = findElement(SELECTORS.buyNowBtn);
+    const subscriptionsContainer = findElement(SELECTORS.subscriptionsContainer);
+    const variant = LiquidPreOrdersConfig.variants && LiquidPreOrdersConfig.variants[variantId];
+    const customPreordersButtonText = AppPreOrdersConfig.custom_button_copy; // NEVER hardcoded
+    if (!variant || !customPreordersButtonText || !addToCartBtn) return;
+
+    if (subscriptionsContainer) subscriptionsContainer.style.display = "none";
+
+    const isPreorder = variant.oos && variant.inventory_policy === 'continue';
+    const target = addToCartBtn.querySelector('span') || addToCartBtn;
+
+    if (isPreorder) {
+      addToCartBtn.dataset.preorderModified = 'true';
+      if (target.textContent !== customPreordersButtonText) target.textContent = customPreordersButtonText;
+      if (buyNowBtn) buyNowBtn.style.display = "none";
+
+      // Attach the preorder selling plan so the cart shows the payment/ship terms
+      setSellingPlan(variant);
+
+      const commentHtml = `<p>${AppPreOrdersConfig.product_page_copy || ''}</p>`; // NEVER hardcoded
+      let preorderComment = document.getElementById('preorder-comment');
+      if (!preorderComment) {
+        preorderComment = document.createElement("div");
+        preorderComment.id = "preorder-comment";
+        // No forced text-align -> inherit theme alignment (fixes the centering jump on switch)
+        preorderComment.innerHTML = commentHtml;
+        addToCartBtn.insertAdjacentElement('afterend', preorderComment);
+      } else {
+        if (preorderComment.innerHTML !== commentHtml) preorderComment.innerHTML = commentHtml;
+        if (preorderComment.style.textAlign) preorderComment.style.textAlign = ''; // strip any prior centering
+        if (preorderComment.previousElementSibling !== addToCartBtn) {
+          addToCartBtn.insertAdjacentElement('afterend', preorderComment);
+        }
+      }
+    } else if (addToCartBtn.dataset.preorderModified === 'true') {
+      addToCartBtn.dataset.preorderModified = 'false';
+      target.textContent = addToCartBtn.dataset.originalText || "Add to cart";
+      if (buyNowBtn) buyNowBtn.style.display = "block";
+      clearSellingPlan();
+      const pc = document.getElementById('preorder-comment');
+      pc && pc.remove();
+    }
+  }
+
+  // Re-apply now + next frames + shortly after, to win the race against the theme's button swap
+  let raf1 = null, raf2 = null, t1 = null;
+  function scheduleApply() {
+    const run = () => { const id = getVariantId(); if (id) apply(id); };
+    run();
+    if (raf1) cancelAnimationFrame(raf1);
+    raf1 = requestAnimationFrame(() => { run(); if (raf2) cancelAnimationFrame(raf2); raf2 = requestAnimationFrame(run); });
+    if (t1) clearTimeout(t1);
+    t1 = setTimeout(run, 120);
+  }
+
+  function seedOriginal() {
+    const btn = findElement(SELECTORS.addToCart);
+    if (btn && !btn.dataset.originalText) {
+      const target = btn.querySelector('span') || btn;
+      const txt = (target.textContent || '').trim();
+      if (typeof AppPreOrdersConfig === 'undefined' || txt !== AppPreOrdersConfig.custom_button_copy) {
+        btn.dataset.originalText = txt || 'Add to cart';
+      }
+    }
+  }
+
+  document.addEventListener('change', function (e) {
+    const t = e.target;
+    if (t && t.closest && (t.closest('select[name="id"], input[name="id"]') ||
+        (t.matches && t.matches('input[type="radio"]')) ||
+        t.closest('[name$="-option1"], .product-form__input, variant-radios, variant-selects, fieldset'))) {
+      scheduleApply();
+    }
+  }, true);
+
+  const container = (findElement(SELECTORS.addToCart) || document.body)
+      .closest('form[action*="/cart/add"]')?.parentElement || document.querySelector('main') || document.body;
+  new MutationObserver(function (muts) {
+    for (const m of muts) {
+      for (const n of m.addedNodes) {
+        if (n.nodeType === 1) {
+          const sel = SELECTORS.addToCart.join(',');
+          if ((n.matches && n.matches(sel)) || (n.querySelector && n.querySelector(sel))) {
+            seedOriginal();
+            scheduleApply();
+            return;
+          }
+        }
+      }
+    }
+  }).observe(container, { childList: true, subtree: true });
+
+  seedOriginal();
+  scheduleApply();
+});
+</script>
+```
+- **Verified by Jall:** Yes
