@@ -2281,3 +2281,42 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 ```
 - **Verified by Jall:** Yes
+
+### [2026-07-08] Pre-Order Button Flickering Fix (MutationObserver)
+- **Store URL:** https://irontanksgymgear.com/products/ribbed-racerback-tank-black-and-white
+- **Issue:** Pre-Order button flickered to "Add to Cart" on variant switch because the theme re-rendered the product form button.
+- **Fix Description:** Implemented a `MutationObserver` on the product form container to detect DOM changes and re-apply "PRE-ORDER" button text if it was reverted by the theme.
+- **Script:**
+```javascript
+(function() {
+  const FORM_SELECTOR = 'form[action="/cart/add"]';
+  const BUTTON_SELECTOR = 'button[name="add"]'; 
+  const PREORDER_TEXT = 'PRE-ORDER';
+
+  function applyFix() {
+    const btn = document.querySelector(BUTTON_SELECTOR);
+    if (!btn) return;
+    
+    // Check if Pre-order ETA is visible to determine if it should be a pre-order button
+    const preorderEta = Array.from(document.querySelectorAll('strong')).find(el => el.innerText.includes('Pre-order ETA'));
+    
+    if (preorderEta) {
+       if (btn.innerText.trim().toLowerCase() !== 'pre-order') {
+          btn.innerText = PREORDER_TEXT;
+          btn.dataset.preorderModified = "true";
+       }
+    }
+  }
+
+  // Monitor for theme changes in the form
+  const observer = new MutationObserver(applyFix);
+  
+  // Start observing the form
+  const target = document.querySelector(FORM_SELECTOR);
+  if (target) {
+    observer.observe(target, { childList: true, characterData: true, subtree: true });
+    applyFix(); // Initial application
+  }
+})();
+```
+- **Verified by Jall:** Yes
